@@ -9,10 +9,18 @@ export default function AdminLogin() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
-  // Component yüklənəndə authentication yoxla
+  // Component mount olduqdan sonra client-side kodları işlət
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Authentication yoxlama - yalnız client-side
+  useEffect(() => {
+    if (!mounted) return; // Server-side render zamanı işləməsin
+    
     const checkAuth = () => {
       const token = getCookie('authToken');
       if (token) {
@@ -29,7 +37,7 @@ export default function AdminLogin() {
       }
     };
     checkAuth();
-  }, [router]);
+  }, [router, mounted]);
 
   const handleChange = (e) => {
     setFormData({
@@ -46,9 +54,31 @@ export default function AdminLogin() {
   };
 
   const getCookie = (name) => {
+    if (typeof document === 'undefined') return null; // Server-side check
     const cookies = document.cookie.split(';');
     const cookie = cookies.find(c => c.trim().startsWith(name + '='));
     return cookie ? cookie.split('=')[1] : null;
+  };
+  
+  // localStorage üçün safe funksiya
+  const setUserData = (userData) => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('userData', JSON.stringify(userData));
+      } catch (error) {
+        console.error('LocalStorage error:', error);
+      }
+    }
+  };
+
+  const removeUserData = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('userData');
+      } catch (error) {
+        console.error('LocalStorage error:', error);
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -72,7 +102,7 @@ export default function AdminLogin() {
         setCookie('authToken', data.token, 30);
         
         // User məlumatlarını localStorage-ə yaz (əlavə məlumat üçün)
-        localStorage.setItem('userData', JSON.stringify(data.user));
+        setUserData(data.user);
         
         // Role yoxla və müvafiq səhifəyə yönləndir
         if (data.user.role === 'admin') {
@@ -96,10 +126,23 @@ export default function AdminLogin() {
 
   const handleLogout = () => {
     // Cookie-ni sil
-    document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    localStorage.removeItem('userData');
+    if (typeof document !== 'undefined') {
+      document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
+    removeUserData();
     router.push('/');
   };
+
+  // Server-side render zamanı loading göstər
+  if (!mounted) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loginForm}>
+          <div style={styles.loading}>Yüklənir...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -227,6 +270,12 @@ const styles = {
     color: '#666',
     marginBottom: '30px',
     fontSize: '14px'
+  },
+  loading: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: '16px',
+    padding: '20px'
   },
   errorMessage: {
     backgroundColor: '#fee',

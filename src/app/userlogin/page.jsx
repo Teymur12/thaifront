@@ -9,9 +9,18 @@ export default function UserLogin() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
+  // Component mount olduqdan sonra client-side kodları işlət
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Authentication yoxlama - yalnız client-side
+  useEffect(() => {
+    if (!mounted) return; // Server-side render zamanı işləməsin
+    
     const checkAuth = () => {
       const token = getCookie('authToken');
       if (token) {
@@ -31,7 +40,7 @@ export default function UserLogin() {
       }
     };
     checkAuth();
-  }, [router]);
+  }, [router, mounted]);
 
   const handleChange = (e) => {
     setFormData({
@@ -42,15 +51,28 @@ export default function UserLogin() {
   };
 
   const setCookie = (name, value, days = 30) => {
+    if (typeof document === 'undefined') return; // Server-side check
     const expires = new Date();
     expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
     document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
   };
 
   const getCookie = (name) => {
+    if (typeof document === 'undefined') return null; // Server-side check
     const cookies = document.cookie.split(';');
     const cookie = cookies.find(c => c.trim().startsWith(name + '='));
     return cookie ? cookie.split('=')[1] : null;
+  };
+
+  // localStorage üçün safe funksiya
+  const setUserData = (userData) => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('userData', JSON.stringify(userData));
+      } catch (error) {
+        console.error('LocalStorage error:', error);
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -71,7 +93,7 @@ export default function UserLogin() {
 
       if (response.ok) {
         setCookie('authToken', data.token, 30);
-        localStorage.setItem('userData', JSON.stringify(data.user));
+        setUserData(data.user);
         
         // Role əsaslı yönləndirmə
         if (data.user.role === 'admin') {
@@ -94,6 +116,17 @@ export default function UserLogin() {
       setLoading(false);
     }
   };
+
+  // Server-side render zamanı loading göstər
+  if (!mounted) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loginForm}>
+          <div style={styles.loading}>Yüklənir...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -221,6 +254,12 @@ const styles = {
     color: '#666',
     marginBottom: '30px',
     fontSize: '14px'
+  },
+  loading: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: '16px',
+    padding: '20px'
   },
   errorMessage: {
     backgroundColor: '#fee',

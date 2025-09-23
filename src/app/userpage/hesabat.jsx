@@ -29,6 +29,7 @@ export default function Hesabat() {
   const [editingItem, setEditingItem] = useState(null);
   const [editingType, setEditingType] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -48,6 +49,14 @@ export default function Hesabat() {
   const [xercler, setXercler] = useState([]);
   const [randevular, setRandevular] = useState([]);
 
+  // User data state - client-side only
+  const [userData, setUserData] = useState(null);
+
+  // Component mount olduqdan sonra client-side kodları işlət
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Ödəniş üsulları və kateqoriyalar
   const odenisUsullari = [
     { value: 'cash', label: 'Nağd', icon: <Banknote size={16} /> },
@@ -65,29 +74,40 @@ export default function Hesabat() {
     'Digər xərclər'
   ];
 
-  // Get user data from localStorage
- const getUserData = () => {
-     const userData = localStorage.getItem('userData');
-     return userData ? JSON.parse(userData) : null;
-   };
- 
-   // Token alma funksiyası
-   const getToken = () => {
-           return Cookies.get('authToken');
-     
-   };
- 
+  // Get user data from localStorage - safe version
+  const getUserData = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const userData = localStorage.getItem('userData');
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('LocalStorage error:', error);
+      return null;
+    }
+  };
+
+  // Token alma funksiyası
+  const getToken = () => {
+    return Cookies.get('authToken');
+  };
 
   // API Base URL
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
-  const userData = getUserData();
+
+  // Get user data after mount
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const data = getUserData();
+    setUserData(data);
+  }, [mounted]);
 
   // Initial data fetch
   useEffect(() => {
-    if (userData) {
+    if (mounted && userData) {
       fetchAllData();
     }
-  }, [selectedDate, dateRange]);
+  }, [selectedDate, dateRange, mounted, userData]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -383,6 +403,8 @@ export default function Hesabat() {
   };
 
   const exportData = () => {
+    if (typeof window === 'undefined') return;
+    
     const data = activeTab === 'gelir' ? gelirler : xercler;
     const csvContent = [
       ['ID', 'Tarix', 'Məbləğ', 'İzahat', activeTab === 'gelir' ? 'Ödəniş Üsulu' : 'Kateqoriya'].join(','),
@@ -402,6 +424,17 @@ export default function Hesabat() {
     a.download = `${activeTab}-${selectedDate}.csv`;
     a.click();
   };
+
+  // Server-side render zamanı loading göstər
+  if (!mounted) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loadingContainer}>
+          <div style={styles.loading}>Yüklənir...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!userData) {
     return (
@@ -770,6 +803,18 @@ const styles = {
     maxWidth: '1400px',
     background: '#f8fafc',
     minHeight: '100vh'
+  },
+
+  loadingContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '400px'
+  },
+
+  loading: {
+    fontSize: '18px',
+    color: '#6b7280'
   },
 
   errorContainer: {

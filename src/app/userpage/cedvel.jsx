@@ -33,6 +33,7 @@ export default function Cedvel() {
   const [masseurs, setMasseurs] = useState([]);
   const [massageTypes, setMassageTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   
   // Form states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -62,24 +63,43 @@ export default function Cedvel() {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  // Get user data from localStorage
+  // Component mount olduqdan sonra client-side kodları işlət
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Get user data from localStorage - safe version
   const getUserData = () => {
-    const userData = localStorage.getItem('userData');
-    return userData ? JSON.parse(userData) : null;
+    if (typeof window === 'undefined') return null;
+    try {
+      const userData = localStorage.getItem('userData');
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('LocalStorage error:', error);
+      return null;
+    }
   };
 
   // Token alma funksiyası
   const getToken = () => {
-          return Cookies.get('authToken');
-    
+    return Cookies.get('authToken');
   };
 
   // API Base URL
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
 
-  // User branch info
-  const userData = getUserData();
-  const userBranch = userData?.branch;
+  // User branch info - yalnız client-side
+  const [userData, setUserData] = useState(null);
+  const [userBranch, setUserBranch] = useState(null);
+
+  // Get user data after mount
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const data = getUserData();
+    setUserData(data);
+    setUserBranch(data?.branch);
+  }, [mounted]);
 
   // Generate time slots (10:30 - 21:00, 15-minute intervals)
   const generateTimeSlots = () => {
@@ -102,17 +122,17 @@ export default function Cedvel() {
 
   // Fetch all initial data
   useEffect(() => {
-    if (userData && userBranch) {
+    if (mounted && userData && userBranch) {
       fetchInitialData();
     }
-  }, []);
+  }, [mounted, userData, userBranch]);
 
   // Fetch appointments when date changes
   useEffect(() => {
-    if (userData && userBranch && masseurs.length > 0) {
+    if (mounted && userData && userBranch && masseurs.length > 0) {
       fetchDayAppointments();
     }
-  }, [selectedDate, masseurs]);
+  }, [selectedDate, masseurs, mounted, userData, userBranch]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -315,7 +335,7 @@ export default function Cedvel() {
       return;
     }
 
-    if (!userData?.branch?._id) {
+    if (!userBranch?._id) {
       alert('Filial məlumatı tapılmadı!');
       return;
     }
@@ -344,7 +364,7 @@ export default function Cedvel() {
       const appointmentData = {
         customer: formData.customer,
         masseur: formData.masseur,
-        branch: userData.branch._id,
+        branch: userBranch._id,
         massageType: formData.massageType,
         duration: parseInt(formData.duration),
         price: formData.price,
@@ -491,6 +511,15 @@ export default function Cedvel() {
         return { icon: <Clock size={14} />, text: 'Bilinmir', color: '#6b7280' };
     }
   };
+
+  // Server-side render zamanı loading göstər
+  if (!mounted) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loading}>Yüklənir...</div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
