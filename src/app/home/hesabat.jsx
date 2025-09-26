@@ -19,7 +19,7 @@ export default function GundelikHesabat() {
     
     try {
       const token = getToken();
-      const response = await fetch(`http://localhost:5000/api/admin/reports/daily/${date}/${token}`, {
+      const response = await fetch(`https://thaiback.onrender.com/api/admin/reports/daily/${date}/${token}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

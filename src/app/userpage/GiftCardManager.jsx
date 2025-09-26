@@ -53,7 +53,7 @@ export default function GiftCardManager() {
      return Cookies.get('authToken');
    };
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
   const userData = getUserData();
 
   // Fetch data

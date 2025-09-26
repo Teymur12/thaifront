@@ -386,7 +386,7 @@ const AdminGiftCards = () => {
       if (selectedStatus) queryParams.append('status', selectedStatus);
       if (searchQuery) queryParams.append('search', searchQuery);
 
-      const response = await fetch(`http://localhost:5000/api/gift-cards/admin/${token}?${queryParams}`);
+      const response = await fetch(`https://thaiback.onrender.com/api/gift-cards/admin/${token}?${queryParams}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -405,7 +405,7 @@ const AdminGiftCards = () => {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/admin/branches/${token}`);
+      const response = await fetch(`https://thaiback.onrender.com/api/admin/branches/${token}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -449,7 +449,7 @@ const AdminGiftCards = () => {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/gift-cards/${cardId}/${token}`, {
+      const response = await fetch(`https://thaiback.onrender.com/api/gift-cards/${cardId}/${token}`, {
         method: 'DELETE'
       });
       

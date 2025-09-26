@@ -16,7 +16,7 @@ const getToken = () => {
 };
 
 // API base URL
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://thaiback.onrender.com/api';
 
 // Cədvəl Komponenti (Yalnız Admin Görüntüləmə)
 export default function AdminCedvel() {
