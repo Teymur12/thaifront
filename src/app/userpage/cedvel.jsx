@@ -19,10 +19,11 @@ import {
   CheckCircle,
   Clock,
   Search,
-  ChevronDown
+  ChevronDown,
+  Gift
 } from 'lucide-react';
-import Cookies from 'js-cookie';
 
+import Cookies from 'js-cookie';
 
 
 // Daily Schedule Component (Masajist-based)
@@ -49,7 +50,8 @@ export default function Cedvel() {
     duration: '',
     price: 0,
     startTime: '',
-    notes: ''
+    notes: '',
+    giftCard: null
   });
 
   const [customerFormData, setCustomerFormData] = useState({
@@ -62,6 +64,12 @@ export default function Cedvel() {
   const [foundCustomers, setFoundCustomers] = useState([]);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+  // Gift Card states
+  const [giftCardNumber, setGiftCardNumber] = useState('');
+  const [showGiftCardValidation, setShowGiftCardValidation] = useState(false);
+  const [validatingGiftCard, setValidatingGiftCard] = useState(false);
+  const [giftCardError, setGiftCardError] = useState('');
 
   // Component mount olduqdan sonra client-side kodları işlət
   useEffect(() => {
@@ -81,12 +89,13 @@ export default function Cedvel() {
   };
 
   // Token alma funksiyası
-  const getToken = () => {
-    return Cookies.get('authToken');
-  };
+   const getToken = () => {
+     return Cookies.get('authToken');
+   };
+ 
 
   // API Base URL
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   // User branch info - yalnız client-side
   const [userData, setUserData] = useState(null);
@@ -215,6 +224,58 @@ export default function Cedvel() {
     setSelectedDate(newDate);
   };
 
+  // Validate gift card
+  const validateGiftCard = async (cardNumber) => {
+    if (!cardNumber.trim()) {
+      setGiftCardError('');
+      setFormData(prev => ({ ...prev, giftCard: null }));
+      return;
+    }
+
+    setValidatingGiftCard(true);
+    setGiftCardError('');
+
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/gift-cards/validate/${cardNumber}/${token}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        const giftCard = data.giftCard;
+        
+        // Auto-fill form with gift card data
+        setFormData(prev => ({
+          ...prev,
+          giftCard: giftCard,
+          massageType: giftCard.massageType._id,
+          duration: giftCard.duration,
+          price: 0 // Gift card means free service
+        }));
+
+        // If gift card has associated customer, select them
+        if (giftCard.purchasedBy) {
+          setSelectedCustomer(giftCard.purchasedBy);
+          setSearchPhone(giftCard.purchasedBy.phone);
+          setFormData(prev => ({ ...prev, customer: giftCard.purchasedBy._id }));
+        }
+
+        setGiftCardError('');
+      } else {
+        setGiftCardError(data.message || 'Hədiyyə kartı tapılmadı');
+        setFormData(prev => ({ ...prev, giftCard: null }));
+      }
+    } catch (error) {
+      console.error('Gift card validation error:', error);
+      setGiftCardError('Hədiyyə kartı yoxlanılarkən xəta baş verdi');
+      setFormData(prev => ({ ...prev, giftCard: null }));
+    } finally {
+      setValidatingGiftCard(false);
+    }
+  };
+
   // Search customers by phone
   const searchCustomersByPhone = async (phone) => {
     if (!phone.trim()) {
@@ -311,7 +372,7 @@ export default function Cedvel() {
   const handleMassageTypeChange = (massageTypeId) => {
     setFormData(prev => {
       const newFormData = { ...prev, massageType: massageTypeId };
-      if (massageTypeId && prev.duration) {
+      if (massageTypeId && prev.duration && !prev.giftCard) {
         newFormData.price = calculatePrice(massageTypeId, prev.duration);
       }
       return newFormData;
@@ -321,7 +382,7 @@ export default function Cedvel() {
   const handleDurationChange = (duration) => {
     setFormData(prev => {
       const newFormData = { ...prev, duration: duration };
-      if (prev.massageType && duration) {
+      if (prev.massageType && duration && !prev.giftCard) {
         newFormData.price = calculatePrice(prev.massageType, duration);
       }
       return newFormData;
@@ -386,9 +447,30 @@ export default function Cedvel() {
 
       if (response.ok) {
         const newAppointment = await response.json();
+        
+        // If using gift card, mark it as used
+        if (formData.giftCard) {
+          try {
+            await fetch(`${API_BASE}/gift-cards/use/${formData.giftCard.cardNumber}/${token}`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                appointmentId: newAppointment._id,
+                usedBy: formData.customer
+              })
+            });
+          } catch (giftCardError) {
+            console.error('Gift card usage error:', giftCardError);
+            alert('Randevu yaradıldı, ancaq hədiyyə kartı qeyd edilmədi');
+          }
+        }
+
         await fetchDayAppointments(); // Refresh appointments
         resetForm();
-        alert('Randevu uğurla əlavə edildi!');
+        alert(formData.giftCard ? 'Randevu yaradıldı və hədiyyə kartı istifadə edildi!' : 'Randevu uğurla əlavə edildi!');
       } else {
         const error = await response.json();
         alert('Xəta: ' + (error.message || 'Randevu əlavə edilmədi'));
@@ -438,7 +520,8 @@ export default function Cedvel() {
       duration: '',
       price: 0,
       startTime: '',
-      notes: ''
+      notes: '',
+      giftCard: null
     });
     setSearchPhone('');
     setFoundCustomers([]);
@@ -446,6 +529,9 @@ export default function Cedvel() {
     setShowCustomerDropdown(false);
     setShowAddForm(false);
     setSelectedSlot(null);
+    setGiftCardNumber('');
+    setGiftCardError('');
+    setShowGiftCardValidation(false);
   };
 
   // Check if time slot is occupied for specific masseur
@@ -509,6 +595,493 @@ export default function Cedvel() {
         return { icon: <X size={14} />, text: 'Ləğv edilib', color: '#ef4444' };
       default:
         return { icon: <Clock size={14} />, text: 'Bilinmir', color: '#6b7280' };
+    }
+  };
+
+  // Styles
+  const styles = {
+    container: {
+      maxWidth: '100%',
+      margin: '0 auto',
+      padding: '20px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      backgroundColor: '#f8fafc',
+      minHeight: '100vh'
+    },
+    loadingContainer: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      backgroundColor: '#f8fafc'
+    },
+    loading: {
+      fontSize: '18px',
+      color: '#64748b'
+    },
+    errorContainer: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      backgroundColor: '#f8fafc'
+    },
+    error: {
+      fontSize: '18px',
+      color: '#ef4444'
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '20px',
+      padding: '20px',
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    },
+    branchInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    },
+    branchName: {
+      fontSize: '20px',
+      fontWeight: '600',
+      color: '#1e293b',
+      margin: 0
+    },
+    dateNavigation: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px'
+    },
+    dateBtn: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '12px 16px',
+      border: '1px solid #e2e8f0',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: '#475569',
+      transition: 'all 0.2s'
+    },
+    dateTitle: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '12px 20px',
+      backgroundColor: '#667eea',
+      borderRadius: '8px',
+      color: 'white'
+    },
+    dateText: {
+      fontSize: '18px',
+      fontWeight: '600',
+      margin: 0
+    },
+    masseursInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      marginBottom: '20px',
+      padding: '12px 20px',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      fontSize: '14px',
+      color: '#64748b'
+    },
+    scheduleContainer: {
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      overflow: 'hidden'
+    },
+    scheduleGrid: {
+      display: 'grid',
+      gap: '1px',
+      backgroundColor: '#e2e8f0'
+    },
+    timeColumn: {
+      padding: '16px',
+      backgroundColor: '#f1f5f9',
+      fontWeight: '600',
+      color: '#475569',
+      textAlign: 'center',
+      fontSize: '14px'
+    },
+    masseurHeader: {
+      padding: '16px',
+      backgroundColor: '#667eea',
+      color: 'white',
+      textAlign: 'center'
+    },
+    masseurName: {
+      fontSize: '16px',
+      fontWeight: '600',
+      marginBottom: '4px'
+    },
+    masseurSpecialty: {
+      fontSize: '12px',
+      opacity: 0.9
+    },
+    scheduleRow: {
+      display: 'contents'
+    },
+    timeCell: {
+      padding: '12px',
+      backgroundColor: '#f8fafc',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    timeLabel: {
+      fontSize: '13px',
+      fontWeight: '500',
+      color: '#64748b'
+    },
+    timeSlot: {
+      padding: '8px',
+      backgroundColor: '#ffffff',
+      border: '1px solid #e5e7eb',
+      cursor: 'pointer',
+      minHeight: '60px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      transition: 'all 0.2s'
+    },
+    emptySlot: {
+      opacity: 0.5,
+      transition: 'opacity 0.2s'
+    },
+    appointmentCard: {
+      width: '100%',
+      fontSize: '11px'
+    },
+    appointmentHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '4px'
+    },
+    appointmentTime: {
+      fontWeight: '600',
+      color: '#0284c7',
+      fontSize: '10px'
+    },
+    statusBadge: {
+      display: 'flex',
+      alignItems: 'center'
+    },
+    appointmentInfo: {
+      textAlign: 'left'
+    },
+    customerName: {
+      display: 'block',
+      fontWeight: '600',
+      color: '#1e293b',
+      marginBottom: '2px'
+    },
+    massageType: {
+      display: 'block',
+      color: '#64748b',
+      fontSize: '10px',
+      marginBottom: '4px'
+    },
+    appointmentFooter: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    price: {
+      fontWeight: '600',
+      color: '#059669',
+      fontSize: '11px'
+    },
+    paymentBadge: {
+      display: 'flex',
+      alignItems: 'center'
+    },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    },
+    modal: {
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '0',
+      maxWidth: '600px',
+      width: '90%',
+      maxHeight: '90vh',
+      overflow: 'hidden'
+    },
+    modalHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '20px',
+      borderBottom: '1px solid #e2e8f0'
+    },
+    modalTitle: {
+      fontSize: '20px',
+      fontWeight: '600',
+      color: '#1e293b',
+      margin: 0
+    },
+    closeBtn: {
+      padding: '8px',
+      border: 'none',
+      backgroundColor: 'transparent',
+      cursor: 'pointer',
+      borderRadius: '6px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    modalBody: {
+      padding: '20px',
+      maxHeight: '70vh',
+      overflowY: 'auto'
+    },
+    formGroup: {
+      marginBottom: '20px'
+    },
+    label: {
+      display: 'flex',
+      alignItems: 'center',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: '#374151',
+      marginBottom: '8px'
+    },
+    input: {
+      width: '100%',
+      padding: '12px',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      fontSize: '14px',
+      boxSizing: 'border-box'
+    },
+    select: {
+      width: '100%',
+      padding: '12px',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      fontSize: '14px',
+      backgroundColor: 'white',
+      boxSizing: 'border-box'
+    },
+    textarea: {
+      width: '100%',
+      padding: '12px',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      fontSize: '14px',
+      minHeight: '80px',
+      resize: 'vertical',
+      boxSizing: 'border-box'
+    },
+    giftCardContainer: {
+      position: 'relative'
+    },
+    validatingIndicator: {
+      fontSize: '12px',
+      color: '#f59e0b',
+      marginTop: '4px'
+    },
+    errorMessage: {
+      fontSize: '12px',
+      color: '#ef4444',
+      marginTop: '4px'
+    },
+    validGiftCard: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px',
+      backgroundColor: '#ecfdf5',
+      border: '1px solid #10b981',
+      borderRadius: '6px',
+      marginTop: '8px'
+    },
+    giftCardInfo: {
+      fontSize: '12px',
+      fontWeight: '500',
+      color: '#059669'
+    },
+    giftCardBuyer: {
+      fontSize: '11px',
+      color: '#6b7280'
+    },
+    customerSearchContainer: {
+      position: 'relative'
+    },
+    customerDropdown: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      backgroundColor: 'white',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+      zIndex: 10,
+      maxHeight: '200px',
+      overflowY: 'auto'
+    },
+    customerOption: {
+      padding: '12px',
+      cursor: 'pointer',
+      borderBottom: '1px solid #f3f4f6',
+      transition: 'background-color 0.2s'
+    },
+    customerOptionHover: {
+      backgroundColor: '#f8fafc'
+    },
+    customerName: {
+      fontWeight: '500',
+      color: '#1e293b'
+    },
+    customerPhone: {
+      fontSize: '12px',
+      color: '#64748b'
+    },
+    selectedCustomerDisplay: {
+      padding: '12px',
+      backgroundColor: '#ecfdf5',
+      border: '1px solid #10b981',
+      borderRadius: '8px',
+      marginBottom: '8px'
+    },
+    selectedCustomerName: {
+      fontWeight: '500',
+      color: '#059669'
+    },
+    selectedCustomerPhone: {
+      fontSize: '12px',
+      color: '#6b7280'
+    },
+    buttonGroup: {
+      display: 'flex',
+      gap: '12px',
+      marginTop: '20px'
+    },
+    primaryBtn: {
+      flex: 1,
+      padding: '12px 20px',
+      backgroundColor: '#667eea',
+      color: 'white',
+      border: 'none',
+      borderRadius: '8px',
+      fontSize: '14px',
+      fontWeight: '500',
+      cursor: 'pointer',
+      transition: 'background-color 0.2s'
+    },
+    secondaryBtn: {
+      flex: 1,
+      padding: '12px 20px',
+      backgroundColor: 'transparent',
+      color: '#64748b',
+      border: '1px solid #e2e8f0',
+      borderRadius: '8px',
+      fontSize: '14px',
+      fontWeight: '500',
+      cursor: 'pointer',
+      transition: 'all 0.2s'
+    },
+    addCustomerBtn: {
+      width: '100%',
+      padding: '10px',
+      backgroundColor: '#f8fafc',
+      border: '1px solid #e2e8f0',
+      borderRadius: '6px',
+      fontSize: '12px',
+      color: '#475569',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px',
+      transition: 'all 0.2s'
+    },
+    paymentButtons: {
+      display: 'flex',
+      gap: '12px',
+      marginTop: '20px'
+    },
+    paymentBtn: {
+      flex: 1,
+      padding: '16px',
+      border: 'none',
+      borderRadius: '8px',
+      fontSize: '14px',
+      fontWeight: '500',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      transition: 'all 0.2s'
+    },
+    cashBtn: {
+      backgroundColor: '#059669',
+      color: 'white'
+    },
+    cardBtn: {
+      backgroundColor: '#3b82f6',
+      color: 'white'
+    },
+    terminalBtn: {
+      backgroundColor: '#8b5cf6',
+      color: 'white'
+    },
+    appointmentDetailModal: {
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '0',
+      maxWidth: '500px',
+      width: '90%'
+    },
+    appointmentDetail: {
+      padding: '20px'
+    },
+    detailRow: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '12px 0',
+      borderBottom: '1px solid #f3f4f6'
+    },
+    detailLabel: {
+      fontSize: '14px',
+      color: '#64748b',
+      fontWeight: '500'
+    },
+    detailValue: {
+      fontSize: '14px',
+      color: '#1e293b',
+      fontWeight: '500',
+      textAlign: 'right'
+    },
+    statusDisplay: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px'
     }
   };
 
@@ -674,289 +1247,199 @@ export default function Cedvel() {
             </div>
             
             <div style={styles.modalBody}>
-              {/* Customer Search with Dropdown */}
+              {/* Gift Card Section */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Müştəri Axtarışı (Telefon və ya Ad):</label>
-                <div style={styles.searchContainer}>
-                  <div style={styles.searchRow}>
+                <label style={styles.label}>
+                  <Gift size={16} style={{ marginRight: '6px' }} />
+                  Hədiyyə Kartı (İstəyə bağlı):
+                </label>
+                <div style={styles.giftCardContainer}>
+                  <input
+                    type="text"
+                    value={giftCardNumber}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setGiftCardNumber(value);
+                      
+                      // Auto-validate after typing stops (debounce)
+                      clearTimeout(window.giftCardTimeout);
+                      window.giftCardTimeout = setTimeout(() => {
+                        validateGiftCard(value);
+                      }, 500);
+                    }}
+                    style={{
+                      ...styles.input,
+                      borderColor: formData.giftCard ? '#10b981' : (giftCardError ? '#ef4444' : '#e5e7eb')
+                    }}
+                    placeholder="Hədiyyə kartı nömrəsini daxil edin"
+                  />
+                  
+                  {validatingGiftCard && (
+                    <div style={styles.validatingIndicator}>Yoxlanılır...</div>
+                  )}
+                  
+                  {giftCardError && (
+                    <div style={styles.errorMessage}>{giftCardError}</div>
+                  )}
+                  
+                  {formData.giftCard && (
+                    <div style={styles.validGiftCard}>
+                      <CheckCircle size={16} />
+                      <div>
+                        <div style={styles.giftCardInfo}>
+                          Etibarlı hədiyyə kartı: {formData.giftCard.massageType.name} - {formData.giftCard.duration} dəqiqə
+                        </div>
+                        {formData.giftCard.purchasedBy && (
+                          <div style={styles.giftCardBuyer}>
+                            Alıcı: {formData.giftCard.purchasedBy.name}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Customer Search */}
+              <div style={styles.formGroup}>
+                <label style={styles.label}>
+                  <User size={16} style={{ marginRight: '6px' }} />
+                  Müştəri:
+                </label>
+                
+                {selectedCustomer ? (
+                  <div style={styles.selectedCustomerDisplay}>
+                    <div style={styles.selectedCustomerName}>{selectedCustomer.name}</div>
+                    <div style={styles.selectedCustomerPhone}>{selectedCustomer.phone}</div>
+                    <button 
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        setFormData(prev => ({ ...prev, customer: '' }));
+                        setSearchPhone('');
+                      }}
+                      style={styles.addCustomerBtn}
+                    >
+                      <X size={14} />
+                      Dəyiş
+                    </button>
+                  </div>
+                ) : (
+                  <div style={styles.customerSearchContainer}>
                     <input
                       type="text"
                       value={searchPhone}
                       onChange={(e) => {
-                        setSearchPhone(e.target.value);
-                        searchCustomersByPhone(e.target.value);
+                        const value = e.target.value;
+                        setSearchPhone(value);
+                        searchCustomersByPhone(value);
                       }}
                       style={styles.input}
-                      placeholder="+994501234567 və ya müştəri adı"
+                      placeholder="Telefon nömrəsi və ya ad ilə axtarın"
                     />
-                    <Search size={16} color="#6b7280" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                  </div>
-
-                  {/* Customer Dropdown */}
-                  {showCustomerDropdown && foundCustomers.length > 0 && (
-                    <div style={styles.dropdown}>
-                      {foundCustomers.map(customer => (
-                        <div
-                          key={customer._id}
-                          style={styles.dropdownItem}
-                          onClick={() => selectCustomer(customer)}
-                        >
-                          <div style={styles.dropdownItemInfo}>
-                            <span style={styles.dropdownItemName}>{customer.name}</span>
-                            <span style={styles.dropdownItemPhone}>{customer.phone}</span>
+                    
+                    {showCustomerDropdown && foundCustomers.length > 0 && (
+                      <div style={styles.customerDropdown}>
+                        {foundCustomers.map((customer) => (
+                          <div
+                            key={customer._id}
+                            style={styles.customerOption}
+                            onClick={() => selectCustomer(customer)}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f8fafc'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                          >
+                            <div style={styles.customerName}>{customer.name}</div>
+                            <div style={styles.customerPhone}>{customer.phone}</div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Selected Customer Display */}
-                  {selectedCustomer && (
-                    <div style={styles.selectedCustomer}>
-                      <User size={16} />
-                      <span>{selectedCustomer.name} - {selectedCustomer.phone}</span>
-                    </div>
-                  )}
-
-                  {/* Add New Customer Button */}
-                  {searchPhone && foundCustomers.length === 0 && showCustomerDropdown === false && (
-                    <button 
-                      onClick={() => {
-                        setCustomerFormData(prev => ({ ...prev, phone: searchPhone }));
-                        setShowCustomerForm(true);
-                      }} 
+                        ))}
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => setShowCustomerForm(true)}
                       style={styles.addCustomerBtn}
                     >
-                      <Plus size={16} />
-                      Yeni müştəri əlavə et
+                      <Plus size={14} />
+                      Yeni Müştəri Əlavə Et
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Selected Masseur (Read-only) */}
+              {/* Massage Type */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Masajist:</label>
-                <input
-                  type="text"
-                  value={masseurs.find(m => m._id === formData.masseur)?.name || ''}
-                  readOnly
-                  style={styles.input}
-                />
+                <label style={styles.label}>Masaj Növü:</label>
+                <select
+                  value={formData.massageType}
+                  onChange={(e) => handleMassageTypeChange(e.target.value)}
+                  style={styles.select}
+                  disabled={formData.giftCard}
+                >
+                  <option value="">Masaj növü seçin</option>
+                  {massageTypes.map((type) => (
+                    <option key={type._id} value={type._id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Masaj Növü:</label>
-                  <select
-                    value={formData.massageType}
-                    onChange={(e) => handleMassageTypeChange(e.target.value)}
-                    style={styles.select}
-                  >
-                    <option value="">Masaj növü seçin</option>
-                    {massageTypes.map(type => (
-                      <option key={type._id} value={type._id}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Başlama Vaxtı:</label>
-                  <input
-                    type="text"
-                    value={selectedSlot?.time || ''}
-                    readOnly
-                    style={styles.input}
-                  />
-                </div>
+              {/* Duration */}
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Müddət:</label>
+                <select
+                  value={formData.duration}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  style={styles.select}
+                  disabled={formData.giftCard}
+                >
+                  <option value="">Müddət seçin</option>
+                  {getAvailableDurations().map((duration) => (
+                    <option key={duration.minutes} value={duration.minutes}>
+                      {duration.minutes} dəqiqə - {duration.price} AZN
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Müddət:</label>
-                  <select
-                    value={formData.duration}
-                    onChange={(e) => handleDurationChange(e.target.value)}
-                    style={styles.select}
-                  >
-                    <option value="">Müddət seçin</option>
-                    {getAvailableDurations().map(duration => (
-                      <option key={duration.minutes} value={duration.minutes}>
-                        {duration.minutes} dəqiqə - {duration.price} AZN
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Qiymət:</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    readOnly
-                    style={styles.input}
-                  />
+              {/* Price Display */}
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Qiymət:</label>
+                <div style={{
+                  ...styles.input,
+                  backgroundColor: formData.giftCard ? '#ecfdf5' : '#f8fafc',
+                  color: formData.giftCard ? '#059669' : '#1e293b',
+                  fontWeight: '600'
+                }}>
+                  {formData.giftCard ? 'Hədiyyə kartı (Pulsuz)' : `${formData.price} AZN`}
                 </div>
               </div>
 
+              {/* Notes */}
               <div style={styles.formGroup}>
                 <label style={styles.label}>Qeydlər:</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   style={styles.textarea}
-                  rows={3}
                   placeholder="Əlavə qeydlər (istəyə bağlı)"
                 />
               </div>
-            </div>
 
-            <div style={styles.modalFooter}>
-              <button onClick={addAppointment} style={styles.saveButton}>
-                <Save size={16} />
-                Saxla
-              </button>
-              <button onClick={resetForm} style={styles.cancelButton}>
-                <X size={16} />
-                Ləğv Et
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Appointment Details Modal */}
-      {showAppointmentModal && selectedAppointment && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Randevu Təfərrüatları</h3>
-              <button onClick={() => setShowAppointmentModal(false)} style={styles.closeBtn}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div style={styles.modalBody}>
-              <div style={styles.appointmentDetails}>
-                <div style={styles.detailRow}>
-                  <User size={20} />
-                  <div>
-                    <strong>Müştəri:</strong> {selectedAppointment.customer?.name}
-                    <br />
-                    <span style={{ color: '#6b7280', fontSize: '14px' }}>Telefon: {selectedAppointment.customer?.phone}</span>
-                  </div>
-                </div>
-
-                <div style={styles.detailRow}>
-                  <Calendar size={20} />
-                  <div>
-                    <strong>Tarix və Vaxt:</strong> {formatDateDisplay(selectedDate)}
-                    <br />
-                    <span style={{ color: '#6b7280', fontSize: '14px' }}>
-                      {new Date(selectedAppointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
-                      {new Date(selectedAppointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={styles.detailRow}>
-                  <Users size={20} />
-                  <div>
-                    <strong>Masajist:</strong> {selectedAppointment.masseur?.name}
-                  </div>
-                </div>
-
-                <div style={styles.detailRow}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span><strong>Masaj Növü:</strong> {selectedAppointment.massageType?.name}</span>
-                    <span style={{ color: '#6b7280' }}>({selectedAppointment.duration} dəqiqə)</span>
-                  </div>
-                </div>
-
-                <div style={styles.detailRow}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span><strong>Qiymət:</strong> {selectedAppointment.price} AZN</span>
-                    {(() => {
-                      const status = getStatusDisplay(selectedAppointment.status);
-                      return (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: status.color }}>
-                          {status.icon}
-                          <span>{status.text}</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {selectedAppointment.paymentMethod && (
-                  <div style={styles.detailRow}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <strong>Ödəniş:</strong>
-                      {(() => {
-                        const payment = getPaymentMethodDisplay(selectedAppointment.paymentMethod);
-                        return (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: payment.color }}>
-                            {payment.icon}
-                            <span>{payment.text}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {selectedAppointment.notes && (
-                  <div style={styles.detailRow}>
-                    <strong>Qeydlər:</strong>
-                    <div style={{ marginTop: '4px', padding: '8px', background: '#f8fafc', borderRadius: '6px', fontSize: '14px' }}>
-                      {selectedAppointment.notes}
-                    </div>
-                  </div>
-                )}
+              {/* Buttons */}
+              <div style={styles.buttonGroup}>
+                <button onClick={addAppointment} style={styles.primaryBtn}>
+                  Randevu Yarat
+                </button>
+                <button onClick={resetForm} style={styles.secondaryBtn}>
+                  Ləğv Et
+                </button>
               </div>
-
-              {/* Payment Options (if not completed) */}
-              {selectedAppointment.status !== 'completed' && (
-                <div style={styles.paymentSection}>
-                  <h4 style={{ margin: '20px 0 12px 0', color: '#374151' }}>Ödəniş Üsulu Seçin:</h4>
-                  <div style={styles.paymentButtons}>
-                    <button 
-                      onClick={() => completeAppointment('cash')} 
-                      style={styles.paymentButton}
-                    >
-                      <Banknote size={20} />
-                      Nağd Ödəniş
-                    </button>
-                    <button 
-                      onClick={() => completeAppointment('card')} 
-                      style={{...styles.paymentButton, background: '#3b82f6'}}
-                    >
-                      <CreditCard size={20} />
-                      Kart ilə Ödəniş
-                    </button>
-                    <button 
-                      onClick={() => completeAppointment('terminal')} 
-                      style={{...styles.paymentButton, background: '#8b5cf6'}}
-                    >
-                      <Monitor size={20} />
-                      Terminal
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={styles.modalFooter}>
-              <button onClick={() => setShowAppointmentModal(false)} style={styles.cancelButton}>
-                <X size={16} />
-                Bağla
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Add Customer Modal */}
+      {/* Customer Form Modal */}
       {showCustomerForm && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
@@ -969,13 +1452,13 @@ export default function Cedvel() {
             
             <div style={styles.modalBody}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Ad və Soyad:</label>
+                <label style={styles.label}>Ad:</label>
                 <input
                   type="text"
                   value={customerFormData.name}
                   onChange={(e) => setCustomerFormData(prev => ({ ...prev, name: e.target.value }))}
                   style={styles.input}
-                  placeholder="Müştəri adını daxil edin"
+                  placeholder="Müştərinin adı"
                 />
               </div>
 
@@ -996,21 +1479,135 @@ export default function Cedvel() {
                   value={customerFormData.notes}
                   onChange={(e) => setCustomerFormData(prev => ({ ...prev, notes: e.target.value }))}
                   style={styles.textarea}
-                  rows={3}
-                  placeholder="Əlavə məlumatlar (istəyə bağlı)"
+                  placeholder="Müştəri haqqında əlavə məlumatlar"
                 />
               </div>
-            </div>
 
-            <div style={styles.modalFooter}>
-              <button onClick={addCustomer} style={styles.saveButton}>
-                <Save size={16} />
-                Saxla
+              <div style={styles.buttonGroup}>
+                <button onClick={addCustomer} style={styles.primaryBtn}>
+                  Müştəri Əlavə Et
+                </button>
+                <button onClick={() => setShowCustomerForm(false)} style={styles.secondaryBtn}>
+                  Ləğv Et
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Appointment Detail Modal */}
+      {showAppointmentModal && selectedAppointment && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.appointmentDetailModal}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Randevu Təfərrüatları</h3>
+              <button onClick={() => setShowAppointmentModal(false)} style={styles.closeBtn}>
+                <X size={20} />
               </button>
-              <button onClick={() => setShowCustomerForm(false)} style={styles.cancelButton}>
-                <X size={16} />
-                Ləğv Et
-              </button>
+            </div>
+            
+            <div style={styles.appointmentDetail}>
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Müştəri:</span>
+                <span style={styles.detailValue}>{selectedAppointment.customer?.name}</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Telefon:</span>
+                <span style={styles.detailValue}>{selectedAppointment.customer?.phone}</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Masajist:</span>
+                <span style={styles.detailValue}>{selectedAppointment.masseur?.name}</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Masaj Növü:</span>
+                <span style={styles.detailValue}>{selectedAppointment.massageType?.name}</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Başlanğıc:</span>
+                <span style={styles.detailValue}>
+                  {new Date(selectedAppointment.startTime).toLocaleTimeString('az-AZ', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Bitmə:</span>
+                <span style={styles.detailValue}>
+                  {new Date(selectedAppointment.endTime).toLocaleTimeString('az-AZ', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Müddət:</span>
+                <span style={styles.detailValue}>{selectedAppointment.duration} dəqiqə</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Qiymət:</span>
+                <span style={styles.detailValue}>{selectedAppointment.price} AZN</span>
+              </div>
+              
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Status:</span>
+                <div style={styles.statusDisplay}>
+                  {(() => {
+                    const status = getStatusDisplay(selectedAppointment.status);
+                    return (
+                      <span style={{ color: status.color, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {status.icon}
+                        {status.text}
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {selectedAppointment.notes && (
+                <div style={styles.detailRow}>
+                  <span style={styles.detailLabel}>Qeydlər:</span>
+                  <span style={styles.detailValue}>{selectedAppointment.notes}</span>
+                </div>
+              )}
+
+              {/* Payment buttons for scheduled appointments */}
+              {selectedAppointment.status === 'scheduled' && (
+                <div style={styles.paymentButtons}>
+                  <button 
+                    onClick={() => completeAppointment('cash')}
+                    style={{ ...styles.paymentBtn, ...styles.cashBtn }}
+                  >
+                    <Banknote size={16} />
+                    Nağd Ödə
+                  </button>
+                  
+                  <button 
+                    onClick={() => completeAppointment('card')}
+                    style={{ ...styles.paymentBtn, ...styles.cardBtn }}
+                  >
+                    <CreditCard size={16} />
+                    Kart
+                  </button>
+                  
+                  <button 
+                    onClick={() => completeAppointment('terminal')}
+                    style={{ ...styles.paymentBtn, ...styles.terminalBtn }}
+                  >
+                    <Monitor size={16} />
+                    Terminal
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1018,514 +1615,3 @@ export default function Cedvel() {
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: '20px',
-    background: '#f8fafc',
-    minHeight: '100vh'
-  },
-
-  loadingContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '400px'
-  },
-
-  loading: {
-    fontSize: '18px',
-    color: '#6b7280'
-  },
-
-  errorContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '400px'
-  },
-
-  error: {
-    fontSize: '18px',
-    color: '#ef4444'
-  },
-
-  header: {
-    marginBottom: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-
-  branchInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    background: 'white',
-    padding: '16px',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-  },
-
-  branchName: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#1e293b',
-    margin: 0
-  },
-
-  dateNavigation: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    background: 'white',
-    padding: '20px',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-  },
-
-  dateBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#667eea',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '10px 16px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500'
-  },
-
-  dateTitle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    color: '#1e293b'
-  },
-
-  dateText: {
-    fontSize: '20px',
-    fontWeight: '600',
-    margin: 0
-  },
-
-  masseursInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#e0f2fe',
-    color: '#0284c7',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    fontSize: '14px',
-    fontWeight: '500'
-  },
-
-  scheduleContainer: {
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    overflow: 'auto'
-  },
-
-  scheduleGrid: {
-    display: 'grid',
-    minWidth: '1200px'
-  },
-
-  timeColumn: {
-    background: '#f8fafc',
-    padding: '12px',
-    fontWeight: '600',
-    borderRight: '1px solid #e5e7eb',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#374151'
-  },
-
-  masseurHeader: {
-    background: '#f8fafc',
-    padding: '12px',
-    textAlign: 'center',
-    borderRight: '1px solid #e5e7eb',
-    borderBottom: '2px solid #e5e7eb'
-  },
-
-  masseurName: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '4px'
-  },
-
-  masseurSpecialty: {
-    fontSize: '12px',
-    color: '#6b7280'
-  },
-
-  scheduleRow: {
-    display: 'contents'
-  },
-
-  timeCell: {
-    background: '#f8fafc',
-    padding: '8px',
-    borderRight: '1px solid #e5e7eb',
-    borderBottom: '1px solid #f3f4f6',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '60px'
-  },
-
-  timeLabel: {
-    fontSize: '12px',
-    color: '#374151'
-  },
-
-  timeSlot: {
-    borderRight: '1px solid #e5e7eb',
-    borderBottom: '1px solid #f3f4f6',
-    minHeight: '60px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-    position: 'relative'
-  },
-
-  emptySlot: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    height: '100%',
-    opacity: 0.5,
-    transition: 'opacity 0.2s ease'
-  },
-
-  appointmentCard: {
-    width: '100%',
-    height: '100%',
-    padding: '8px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between'
-  },
-
-  appointmentHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '4px'
-  },
-
-  appointmentTime: {
-    fontSize: '10px',
-    fontWeight: '600',
-    color: '#0284c7'
-  },
-
-  statusBadge: {
-    display: 'flex',
-    alignItems: 'center'
-  },
-
-  appointmentInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px'
-  },
-
-  customerName: {
-    fontSize: '11px',
-    fontWeight: '600',
-    color: '#1e293b',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-
-  massageType: {
-    fontSize: '9px',
-    color: '#9ca3af',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-
-  appointmentFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-
-  price: {
-    fontSize: '10px',
-    fontWeight: '600',
-    color: '#059669'
-  },
-
-  paymentBadge: {
-    display: 'flex',
-    alignItems: 'center'
-  },
-
-  // Modal styles
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2000
-  },
-
-  modal: {
-    background: 'white',
-    borderRadius: '12px',
-    width: '600px',
-    maxHeight: '80vh',
-    overflow: 'auto'
-  },
-
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid #e5e7eb'
-  },
-
-  modalTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1e293b',
-    margin: 0
-  },
-
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#6b7280'
-  },
-
-  modalBody: {
-    padding: '20px'
-  },
-
-  formGroup: {
-    marginBottom: '16px'
-  },
-
-  formRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px'
-  },
-
-  label: {
-    display: 'block',
-    marginBottom: '6px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151'
-  },
-
-  input: {
-    width: '100%',
-    padding: '12px 16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s ease'
-  },
-
-  textarea: {
-    width: '100%',
-    padding: '12px 16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    transition: 'border-color 0.2s ease'
-  },
-
-  select: {
-    width: '100%',
-    padding: '12px 16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-    background: 'white',
-    transition: 'border-color 0.2s ease'
-  },
-
-  searchContainer: {
-    position: 'relative'
-  },
-
-  searchRow: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center'
-  },
-
-  dropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    background: 'white',
-    border: '2px solid #e5e7eb',
-    borderTop: 'none',
-    borderRadius: '0 0 8px 8px',
-    maxHeight: '200px',
-    overflowY: 'auto',
-    zIndex: 1000
-  },
-
-  dropdownItem: {
-    padding: '12px 16px',
-    cursor: 'pointer',
-    borderBottom: '1px solid #f3f4f6',
-    transition: 'background-color 0.2s ease'
-  },
-
-  dropdownItemInfo: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-
-  dropdownItemName: {
-    fontWeight: '500',
-    color: '#374151'
-  },
-
-  dropdownItemPhone: {
-    fontSize: '14px',
-    color: '#6b7280'
-  },
-
-  selectedCustomer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginTop: '8px',
-    padding: '8px 12px',
-    background: '#dcfce7',
-    borderRadius: '6px',
-    color: '#166534',
-    fontSize: '14px'
-  },
-
-  addCustomerBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 12px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    marginTop: '8px'
-  },
-
-  appointmentDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-
-  detailRow: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
-    padding: '12px',
-    background: '#f8fafc',
-    borderRadius: '8px'
-  },
-
-  paymentSection: {
-    marginTop: '24px',
-    padding: '20px',
-    background: '#f8fafc',
-    borderRadius: '8px'
-  },
-
-  paymentButtons: {
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap'
-  },
-
-  paymentButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#059669',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    flex: 1,
-    minWidth: '140px'
-  },
-
-  modalFooter: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    padding: '20px',
-    borderTop: '1px solid #e5e7eb'
-  },
-
-  saveButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    background: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px 20px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer'
-  },
-
-  cancelButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px 20px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer'
-  }
-};

@@ -11,7 +11,8 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
-  Scissors
+  Scissors,
+  Gift
 } from 'lucide-react';
 import Filiallar from '../home/filials.jsx';
 import Masajistler from '../home/Masajistler.jsx';
@@ -19,6 +20,7 @@ import Reseptionlar from '../home/Reseptions.jsx';
 import Hesabat from '../home/hesabat.jsx';
 import Cedvel from '../home/cedvel.jsx';
 import MasajNovleri from './massaj.jsx';
+import GiftCardsAdmin from './GiftCardsAdmin.jsx';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -48,6 +50,12 @@ export default function Sidebar() {
       label: 'Reseptionlar',
       icon: UserCheck,
       message: 'Salam! Bu Reseptionlar bölməsidir.'
+    },
+    {
+      id: 'gift-cards',
+      label: 'Hədiyyə Kartları',
+      icon: Gift,
+      message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
     },
     {
       id: 'hesabat',
@@ -175,6 +183,8 @@ export default function Sidebar() {
               <MasajNovleri />
             ) : activeItem === 'receptions' ? (
               <Reseptionlar />
+            ) : activeItem === 'gift-cards' ? (
+              <GiftCardsAdmin />
             ) : activeItem === 'hesabat' ? (
               <Hesabat />
             ) : activeItem === 'cedvel' ? (

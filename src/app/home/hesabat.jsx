@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Calendar, DollarSign, Building2, Users, Clock, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, DollarSign, Building2, Users, Clock, CreditCard, Banknote, Smartphone, Gift } from 'lucide-react';
 import Cookies from 'js-cookie';
 
 export default function GundelikHesabat() {
@@ -19,7 +19,7 @@ export default function GundelikHesabat() {
     
     try {
       const token = getToken();
-      const response = await fetch(`https://thaiback.onrender.com/api/admin/reports/daily/${date}/${token}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/reports/daily/${date}/${token}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -31,6 +31,7 @@ export default function GundelikHesabat() {
       }
 
       const data = await response.json();
+      
       setReportData(data);
     } catch (err) {
       setError(err.message);
@@ -57,22 +58,41 @@ export default function GundelikHesabat() {
     });
   };
 
-  // Ümumi statistikalar
+  // Ümumi statistikalar (Gift card sales daxil)
   const getTotalStats = () => {
     if (!reportData || !reportData.branches) {
-      return { totalRevenue: 0, totalExpenses: 0, totalAppointments: 0, netProfit: 0 };
+      return { 
+        totalRevenue: 0, 
+        totalGiftCardSales: 0, 
+        totalGiftCardCount: 0,
+        totalExpenses: 0, 
+        totalAppointments: 0, 
+        netProfit: 0,
+        totalCombinedRevenue: 0
+      };
     }
 
     const branches = Object.values(reportData.branches);
     const totalRevenue = branches.reduce((sum, branch) => sum + branch.revenue.total, 0);
+    const totalGiftCardSales = branches.reduce((sum, branch) => sum + (branch.giftCardSales?.total || 0), 0);
+    const totalGiftCardCount = branches.reduce((sum, branch) => sum + (branch.giftCardSales?.count || 0), 0);
     const totalExpenses = branches.reduce((sum, branch) => sum + branch.expenses.total, 0);
     const totalAppointments = branches.reduce((sum, branch) => sum + branch.appointments, 0);
-    const netProfit = totalRevenue - totalExpenses;
+    const totalCombinedRevenue = totalRevenue + totalGiftCardSales;
+    const netProfit = totalCombinedRevenue - totalExpenses;
 
-    return { totalRevenue, totalExpenses, totalAppointments, netProfit };
+    return { 
+      totalRevenue, 
+      totalGiftCardSales, 
+      totalGiftCardCount,
+      totalExpenses, 
+      totalAppointments, 
+      netProfit,
+      totalCombinedRevenue
+    };
   };
 
-  const { totalRevenue, totalExpenses, totalAppointments, netProfit } = getTotalStats();
+  const { totalRevenue, totalGiftCardSales, totalGiftCardCount, totalExpenses, totalAppointments, netProfit, totalCombinedRevenue } = getTotalStats();
 
   const getPaymentMethodIcon = (method) => {
     switch (method) {
@@ -148,8 +168,19 @@ export default function GundelikHesabat() {
             <TrendingUp size={24} color="#10b981" />
           </div>
           <div style={styles.statContent}>
-            <h3 style={styles.statTitle}>Ümumi Gəlir</h3>
+            <h3 style={styles.statTitle}>Masaj Gəliri</h3>
             <p style={styles.statValue}>{formatMebleg(totalRevenue)}</p>
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={styles.statIcon}>
+            <Gift size={24} color="#8b5cf6" />
+          </div>
+          <div style={styles.statContent}>
+            <h3 style={styles.statTitle}>Hədiyyə Kartları</h3>
+            <p style={styles.statValue}>{formatMebleg(totalGiftCardSales)}</p>
+            <p style={styles.statSubValue}>{totalGiftCardCount} ədəd</p>
           </div>
         </div>
 
@@ -165,11 +196,21 @@ export default function GundelikHesabat() {
 
         <div style={styles.statCard}>
           <div style={styles.statIcon}>
-            <Users size={24} color="#8b5cf6" />
+            <Users size={24} color="#f59e0b" />
           </div>
           <div style={styles.statContent}>
             <h3 style={styles.statTitle}>Görüşlər</h3>
             <p style={styles.statValue}>{totalAppointments}</p>
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={styles.statIcon}>
+            <DollarSign size={24} color="#06b6d4" />
+          </div>
+          <div style={styles.statContent}>
+            <h3 style={styles.statTitle}>Ümumi Gəlir</h3>
+            <p style={styles.statValue}>{formatMebleg(totalCombinedRevenue)}</p>
           </div>
         </div>
 
@@ -204,11 +245,11 @@ export default function GundelikHesabat() {
                   <h3 style={styles.branchName}>{branch.name}</h3>
                 </div>
 
-                {/* Gəlir Məlumatları */}
+                {/* Masaj Gəlirləri */}
                 <div style={styles.branchSection}>
                   <h4 style={styles.branchSectionTitle}>
                     <TrendingUp size={16} color="#10b981" />
-                    Gəlirlər
+                    Masaj Gəlirləri
                   </h4>
                   <div style={styles.revenueGrid}>
                     {branch.revenue.cash > 0 && (
@@ -246,9 +287,57 @@ export default function GundelikHesabat() {
                     )}
                   </div>
                   <div style={styles.totalRevenue}>
-                    <strong>Toplam: {formatMebleg(branch.revenue.total)}</strong>
+                    <strong>Masaj Toplamı: {formatMebleg(branch.revenue.total)}</strong>
                   </div>
                 </div>
+
+                {/* Hədiyyə Kartı Satışları */}
+                {branch.giftCardSales && branch.giftCardSales.total > 0 && (
+                  <div style={styles.branchSection}>
+                    <h4 style={styles.branchSectionTitle}>
+                      <Gift size={16} color="#8b5cf6" />
+                      Hədiyyə Kartı Satışları
+                    </h4>
+                    <div style={styles.revenueGrid}>
+                      {branch.giftCardSales.cash > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('cash')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Nağd</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.giftCardSales.cash)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {branch.giftCardSales.card > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('card')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Bank Kartı</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.giftCardSales.card)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {branch.giftCardSales.terminal > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('terminal')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Terminal</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.giftCardSales.terminal)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={styles.totalGiftCard}>
+                      <strong>Hədiyyə Kartları: {formatMebleg(branch.giftCardSales.total)} ({branch.giftCardSales.count} ədəd)</strong>
+                    </div>
+                  </div>
+                )}
 
                 {/* Xərc Məlumatları */}
                 {branch.expenses.total > 0 && (
@@ -271,14 +360,17 @@ export default function GundelikHesabat() {
                   </div>
                 )}
 
-                {/* Görüşlər */}
+                {/* Footer */}
                 <div style={styles.branchFooter}>
                   <div style={styles.appointmentsBadge}>
                     <Clock size={14} />
                     <span>{branch.appointments} görüş</span>
                   </div>
+                  <div style={styles.totalRevenueBadge}>
+                    Ümumi: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.giftCardSales?.total || 0))))}
+                  </div>
                   <div style={styles.netProfitBadge}>
-                    Xalis: {formatMebleg(branch.revenue.total - branch.expenses.total)}
+                    Xalis: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.giftCardSales?.total || 0))) - branch.expenses.total)}
                   </div>
                 </div>
               </div>
@@ -394,7 +486,7 @@ const styles = {
 
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '20px',
     marginBottom: '30px'
   },
@@ -432,10 +524,16 @@ const styles = {
   },
 
   statValue: {
-    fontSize: '24px',
+    fontSize: '20px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0
+  },
+
+  statSubValue: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: '4px 0 0 0'
   },
 
   sectionTitle: {
@@ -550,6 +648,15 @@ const styles = {
     textAlign: 'center'
   },
 
+  totalGiftCard: {
+    marginTop: '12px',
+    padding: '12px',
+    background: '#faf5ff',
+    borderRadius: '8px',
+    color: '#7c3aed',
+    textAlign: 'center'
+  },
+
   expensesList: {
     display: 'flex',
     flexDirection: 'column',
@@ -587,7 +694,9 @@ const styles = {
     alignItems: 'center',
     marginTop: '16px',
     paddingTop: '16px',
-    borderTop: '1px solid #f1f5f9'
+    borderTop: '1px solid #f1f5f9',
+    flexWrap: 'wrap',
+    gap: '8px'
   },
 
   appointmentsBadge: {
@@ -595,11 +704,20 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     padding: '6px 12px',
-    background: '#f3e8ff',
-    color: '#7c3aed',
+    background: '#fef3c7',
+    color: '#d97706',
     borderRadius: '6px',
     fontSize: '12px',
     fontWeight: '500'
+  },
+
+  totalRevenueBadge: {
+    padding: '6px 12px',
+    background: '#dbeafe',
+    color: '#1d4ed8',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '600'
   },
 
   netProfitBadge: {

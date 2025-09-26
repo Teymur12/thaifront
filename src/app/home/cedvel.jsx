@@ -10,15 +10,13 @@ import {
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 
-
 // Token alıcı funksiya (Cookies-dən)
- const getToken = () => {
-          return Cookies.get('authToken');
-    
-  };
+const getToken = () => {
+  return Cookies.get('authToken');
+};
 
 // API base URL
-const API_BASE = 'https://thaiback.onrender.com/api';
+const API_BASE = 'http://localhost:5000/api';
 
 // Cədvəl Komponenti (Yalnız Admin Görüntüləmə)
 export default function AdminCedvel() {
@@ -28,6 +26,7 @@ export default function AdminCedvel() {
   const [appointments, setAppointments] = useState([]);
   const [branches, setBranches] = useState([]);
   const [masseurs, setMasseurs] = useState([]);
+  const [receptionists, setReceptionists] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Saatları generasiya et (10:30 - 21:00)
@@ -78,12 +77,30 @@ export default function AdminCedvel() {
     }
   };
 
+  const fetchReceptionists = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/receptionists/${getToken()}`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setReceptionists(data);
+      }
+    } catch (error) {
+      console.error('Resepsiyon işçiləri yüklənə bilmədi:', error);
+    }
+  };
+
   const fetchAppointments = async () => {
     if (!selectedBranch) return;
     
     setLoading(true);
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
       const response = await fetch(
         `${API_BASE}/appointments/daily/${selectedBranch}/${dateStr}/${getToken()}`,
         {
@@ -100,10 +117,48 @@ export default function AdminCedvel() {
     setLoading(false);
   };
 
+  // Resepsiyon işçisinin adını al
+  const getReceptionistName = (userId) => {
+    if (!userId) return 'Məlum deyil';
+    const receptionist = receptionists.find(r => r._id === userId);
+    return receptionist ? receptionist.name : 'Məlum deyil';
+  };
+
+  // Ödəniş metodunun rəngini al
+  const getPaymentMethodColor = (method) => {
+    switch(method) {
+      case 'cash': return '#10b981'; // yaşıl
+      case 'card': return '#3b82f6'; // mavi
+      case 'terminal': return '#f59e0b'; // sarı
+      default: return '#6b7280'; // boz
+    }
+  };
+
+  // Ödəniş metodunun adını al
+  const getPaymentMethodName = (method) => {
+    switch(method) {
+      case 'cash': return 'Nağd';
+      case 'card': return 'Kart';
+      case 'terminal': return 'Terminal';
+      default: return method;
+    }
+  };
+
+  // Status rəngini al
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'completed': return '#10b981';
+      case 'pending': return '#f59e0b';
+      case 'cancelled': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
   // Component mount olduqda data yüklə
   useEffect(() => {
     fetchBranches();
     fetchMasseurs();
+    fetchReceptionists();
   }, []);
 
   // Filial və ya tarix dəyişdikdə randevuları yüklə
@@ -122,38 +177,50 @@ export default function AdminCedvel() {
 
   // Masajist üçün randevuları al
   const getMasseurAppointments = (masseurId) => {
-    return appointments.filter(appointment => 
+    const filteredAppointments = appointments.filter(appointment => 
       appointment.masseur && appointment.masseur._id === masseurId
     );
+    return filteredAppointments;
   };
 
   // Vaxt slotunun məşğul olub-olmadığını yoxla
   const isTimeSlotOccupied = (masseurId, time) => {
     const masseurAppointments = getMasseurAppointments(masseurId);
-    return masseurAppointments.find(appointment => {
+    
+    const foundAppointment = masseurAppointments.find(appointment => {
       const appointmentStart = new Date(appointment.startTime);
       const appointmentEnd = new Date(appointment.endTime);
+      
       const slotTime = new Date(selectedDate);
       const [hours, minutes] = time.split(':').map(Number);
       slotTime.setHours(hours, minutes, 0, 0);
       
-      return slotTime >= appointmentStart && slotTime < appointmentEnd;
+      const isOccupied = slotTime >= appointmentStart && slotTime < appointmentEnd;
+      return isOccupied;
     });
+    
+    return foundAppointment;
   };
 
   // Randevunun başlanğıc slotu olub-olmadığını yoxla
   const isAppointmentStart = (masseurId, time) => {
     const masseurAppointments = getMasseurAppointments(masseurId);
+    
     const foundAppointment = masseurAppointments.find(appointment => {
       const appointmentStart = new Date(appointment.startTime);
+      
       const slotTime = new Date(selectedDate);
       const [hours, minutes] = time.split(':').map(Number);
       slotTime.setHours(hours, minutes, 0, 0);
       
-      return appointmentStart.getTime() === slotTime.getTime();
+      const isSameTime = appointmentStart.getTime() === slotTime.getTime();
+      const isSameHourMinute = appointmentStart.getHours() === slotTime.getHours() && 
+                               appointmentStart.getMinutes() === slotTime.getMinutes();
+      
+      return isSameTime || isSameHourMinute;
     });
     
-    return !!foundAppointment;
+    return foundAppointment;
   };
 
   // Randevu sil
@@ -266,7 +333,7 @@ export default function AdminCedvel() {
         </div>
       </div>
 
-      {/* Masajist sayı məlumatı */}
+      {/* Debug məlumatları */}
       <div style={styles.masseursInfo}>
         <Users size={20} />
         <span>Aktiv Masajistlər: {branchMasseurs.length} nəfər</span>
@@ -319,44 +386,83 @@ export default function AdminCedvel() {
                     }}
                   >
                     {appointment ? (
-                      // Yalnız başlanğıc slotda tam məlumat göstər
-                      isStartSlot ? (
-                        <div style={styles.appointmentCard}>
-                          <div style={styles.appointmentHeader}>
+                      <div style={styles.appointmentCard}>
+                        <div style={styles.appointmentHeader}>
+                          <div style={styles.appointmentTimeContainer}>
                             <span style={styles.appointmentTime}>
                               {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
                               {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                             </span>
-                            <div style={styles.appointmentActions}>
-                              <button 
-                                style={styles.deleteBtn} 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteAppointment(appointment._id);
-                                }}
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                            <span 
+                              style={{
+                                ...styles.statusBadge,
+                                backgroundColor: getStatusColor(appointment.status)
+                              }}
+                            >
+                              {appointment.status}
+                            </span>
                           </div>
-                          <div style={styles.appointmentInfo}>
+                          <div style={styles.appointmentActions}>
+                            <button 
+                              style={styles.deleteBtn} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteAppointment(appointment._id);
+                              }}
+                              title="Randevunu sil"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div style={styles.appointmentInfo}>
+                          <div style={styles.customerRow}>
+                            <User size={12} />
                             <span style={styles.customerName}>
-                              {appointment.customer?.name}
+                              {appointment.customer?.name || 'Ad yoxdur'}
                             </span>
+                          </div>
+                          
+                          <div style={styles.massageRow}>
                             <span style={styles.massageType}>
-                              {appointment.massageType?.name}
+                              {appointment.massageType?.name || 'Masaj növü yoxdur'}
                             </span>
+                            <span style={styles.duration}>
+                              ({appointment.duration} dəq)
+                            </span>
+                          </div>
+                          
+                          <div style={styles.priceRow}>
                             <span style={styles.appointmentPrice}>
                               {appointment.price} ₼
                             </span>
+                            <span 
+                              style={{
+                                ...styles.paymentMethod,
+                                color: getPaymentMethodColor(appointment.paymentMethod)
+                              }}
+                            >
+                              {getPaymentMethodName(appointment.paymentMethod)}
+                            </span>
                           </div>
+                          
+                          <div style={styles.receptionistRow}>
+                            <span style={styles.receptionistLabel}>Qeydiyyatçı:</span>
+                            <span style={styles.receptionistName}>
+                              {getReceptionistName(appointment.createdBy)}
+                            </span>
+                          </div>
+                          
+                          {appointment.notes && (
+                            <div style={styles.notesRow}>
+                              <span style={styles.notes}>
+                                "{appointment.notes}"
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        // Davam edən slotlarda yalnız göstərici
-                        <div style={styles.continueSlot}>
-                          <div style={styles.continueIndicator}></div>
-                        </div>
-                      )
+                      </div>
                     ) : (
                       // Boş slot
                       <div style={styles.emptySlot}>
@@ -389,6 +495,17 @@ const styles = {
     color: 'white',
     fontSize: '18px',
     fontWeight: '600'
+  },
+
+  // Debug info style
+  debugInfo: {
+    background: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '20px',
+    fontSize: '14px',
+    color: '#374151'
   },
 
   // Filial seçimi stilləri
@@ -635,23 +752,44 @@ const styles = {
   appointmentCard: {
     width: '100%',
     height: '100%',
-    padding: '8px',
+    padding: '6px',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
+    borderRadius: '6px',
+    border: '1px solid #0284c7',
+    boxShadow: '0 2px 4px rgba(2, 132, 199, 0.1)'
   },
 
   appointmentHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: '4px'
+  },
+
+  appointmentTimeContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
   },
 
   appointmentTime: {
     fontSize: '10px',
+    fontWeight: '700',
+    color: '#0284c7',
+    lineHeight: 1
+  },
+
+  statusBadge: {
+    fontSize: '8px',
     fontWeight: '600',
-    color: '#0284c7'
+    color: 'white',
+    backgroundColor: '#10b981',
+    padding: '1px 4px',
+    borderRadius: '4px',
+    textTransform: 'capitalize'
   },
 
   appointmentActions: {
@@ -663,40 +801,112 @@ const styles = {
     background: '#ef4444',
     color: 'white',
     border: 'none',
-    borderRadius: '3px',
-    padding: '2px',
+    borderRadius: '4px',
+    padding: '3px',
     cursor: 'pointer',
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      background: '#dc2626'
+    }
   },
 
   appointmentInfo: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px'
+    gap: '3px'
+  },
+
+  customerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
 
   customerName: {
     fontSize: '11px',
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1e293b',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
 
+  massageRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    flexWrap: 'wrap'
+  },
+
   massageType: {
     fontSize: '9px',
-    color: '#9ca3af',
+    color: '#475569',
+    fontWeight: '500',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
-    textOverflow: 'ellipsis'
+    textOverflow: 'ellipsis',
+    flex: 1
+  },
+
+  duration: {
+    fontSize: '8px',
+    color: '#64748b',
+    fontWeight: '500'
+  },
+
+  priceRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
 
   appointmentPrice: {
-    fontSize: '10px',
-    fontWeight: '600',
+    fontSize: '11px',
+    fontWeight: '700',
     color: '#059669'
+  },
+
+  paymentMethod: {
+    fontSize: '8px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+
+  receptionistRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginTop: '2px',
+    paddingTop: '3px',
+    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
+  },
+
+  receptionistLabel: {
+    fontSize: '8px',
+    color: '#64748b',
+    fontWeight: '500'
+  },
+
+  receptionistName: {
+    fontSize: '8px',
+    color: '#374151',
+    fontWeight: '600'
+  },
+
+  notesRow: {
+    marginTop: '2px',
+    paddingTop: '3px',
+    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
+  },
+
+  notes: {
+    fontSize: '8px',
+    color: '#6b7280',
+    fontStyle: 'italic',
+    lineHeight: 1.2
   },
 
   continueSlot: {

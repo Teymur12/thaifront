@@ -10,10 +10,12 @@ import {
   X,
   Home,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Gift
 } from 'lucide-react';
 import Hesabat from '../userpage/hesabat.jsx';
 import Cedvel from '../userpage/cedvel.jsx';
+import GiftCardManager from './GiftCardManager.jsx';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -31,7 +33,13 @@ export default function Sidebar() {
       label: 'Cədvəl',
       icon: Grid3X3,
       message: 'Salam! Bu Cədvəl bölməsidir.'
-    }
+    },
+    {
+     id: 'giftcards',
+     label: 'Hədiyyə Kartları',
+     icon: Gift,
+     message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
+   }
   ];
 
   const handleItemClick = (item) => {
@@ -50,6 +58,9 @@ export default function Sidebar() {
   if (activeItem === 'cedvel') {
     return <Cedvel />;   // 🔹 Cədvəl burda çağırılır
   }
+   if (activeItem === 'giftcards') {
+     return <GiftCardManager />;
+   }
   
     return (
       <div style={styles.content}>
