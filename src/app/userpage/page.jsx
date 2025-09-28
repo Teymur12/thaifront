@@ -11,14 +11,15 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
-  Gift
+  Gift,
+  LogOut
 } from 'lucide-react';
 import Hesabat from '../userpage/hesabat.jsx';
 import Cedvel from '../userpage/cedvel.jsx';
 import GiftCardManager from './GiftCardManager.jsx';
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // 🔹 Başlanğıcda bağlı olsun
   const [activeItem, setActiveItem] = useState('hesabat');
 
   const menuItems = [
@@ -41,6 +42,25 @@ export default function Sidebar() {
      message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
    }
   ];
+
+  // 🔹 Çıxış funksiyası
+  const handleLogout = () => {
+    try {
+      // LocalStorage-dan userData-nı sil
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('userData');
+      }
+      
+      // Cookie-dən authToken-i sil
+      // Cookies.remove('authToken'); // Əgər js-cookie istifadə edirsinizsə
+      document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      
+      // Sayta yönləndirmə və ya login səhifəsinə keçid
+      window.location.href = '/userlogin'; // və ya istədiyiniz səhifə
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const handleItemClick = (item) => {
     setActiveItem(item.id);
@@ -149,6 +169,31 @@ export default function Sidebar() {
               </div>
             );
           })}
+
+          {/* 🔹 Çıxış düyməsi */}
+          <div style={styles.menuItemWrapper}>
+            <button
+              onClick={handleLogout}
+              style={{
+                ...styles.menuItem,
+                backgroundColor: 'transparent',
+                color: '#dc2626', // Qırmızı rəng
+                justifyContent: isCollapsed ? 'center' : 'flex-start'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#fee2e2';
+                e.currentTarget.style.color = '#b91c1c';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#dc2626';
+              }}
+              title={isCollapsed ? 'Çıxış' : ''}
+            >
+              <LogOut size={20} />
+              {!isCollapsed && <span style={styles.menuText}>Çıxış</span>}
+            </button>
+          </div>
         </nav>
 
         {/* Footer - User Info */}

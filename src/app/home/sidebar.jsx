@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Scissors,
-  Gift
+  Gift,
+  LogOut
 } from 'lucide-react';
 import Filiallar from '../home/filials.jsx';
 import Masajistler from '../home/Masajistler.jsx';
@@ -23,8 +24,8 @@ import MasajNovleri from './massaj.jsx';
 import GiftCardsAdmin from './GiftCardsAdmin.jsx';
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState('home');
+  const [isCollapsed, setIsCollapsed] = useState(true); // 🔹 Başlanğıcda bağlı olsun
+  const [activeItem, setActiveItem] = useState('');
 
   const menuItems = [
     {
@@ -71,12 +72,85 @@ export default function Sidebar() {
     }
   ];
 
+  // 🔹 Çıxış funksiyası
+  const handleLogout = () => {
+    try {
+      // LocalStorage-dan userData-nı sil
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('userData');
+      }
+      
+      // Cookie-dən authToken-i sil
+      // Cookies.remove('authToken'); // Əgər js-cookie istifadə edirsinizsə
+      document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      
+      // Sayta yönləndirmə və ya login səhifəsinə keçid
+      window.location.href = '/adminlogin'; // və ya istədiyiniz səhifə
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   const handleItemClick = (item) => {
     setActiveItem(item.id);
   };
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+ const renderContent = () => {
+  if (activeItem === 'filiallar') {
+    return <Filiallar />;
+  }
+
+  if (activeItem === 'masajistler') {
+    return <Masajistler />;
+  }
+
+  if (activeItem === 'masaj-novleri') {
+    return <MasajNovleri />;
+  }
+
+  if (activeItem === 'receptions') {
+    return <Reseptionlar />;
+  }
+
+  if (activeItem === 'gift-cards') {
+    return <GiftCardsAdmin />;
+  }
+
+  if (activeItem === 'hesabat') {
+    return <Hesabat />;
+  }
+
+  if (activeItem === 'cedvel') {
+    return <Cedvel />;
+  }
+  
+    return (
+      <div style={styles.content}>
+        <div style={styles.contentHeader}>
+          <h1 style={styles.contentTitle}>
+            Admin Paneli
+          </h1>
+          <p style={styles.contentSubtitle}>
+            Xoş gəlmisiniz! Yan menyudan istədiyiniz bölməni seçin.
+          </p>
+        </div>
+        
+        <div style={styles.contentBody}>
+          <div style={styles.card}>
+            <h3 style={styles.cardTitle}>
+              Başlanğıc Səhifə
+            </h3>
+            <p style={styles.cardText}>
+              Bu admin panelindəki bütün funksiyalara sol menyudan daxil ola bilərsiniz.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -141,6 +215,31 @@ export default function Sidebar() {
               </div>
             );
           })}
+
+          {/* 🔹 Çıxış düyməsi */}
+          <div style={styles.menuItemWrapper}>
+            <button
+              onClick={handleLogout}
+              style={{
+                ...styles.menuItem,
+                backgroundColor: 'transparent',
+                color: '#dc2626', // Qırmızı rəng
+                justifyContent: isCollapsed ? 'center' : 'flex-start'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#fee2e2';
+                e.currentTarget.style.color = '#b91c1c';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#dc2626';
+              }}
+              title={isCollapsed ? 'Çıxış' : ''}
+            >
+              <LogOut size={20} />
+              {!isCollapsed && <span style={styles.menuText}>Çıxış</span>}
+            </button>
+          </div>
         </nav>
 
         {/* Footer - User Info */}
@@ -164,43 +263,7 @@ export default function Sidebar() {
         ...styles.mainContent,
         marginLeft: isCollapsed ? '70px' : '280px'
       }}>
-        <div style={styles.content}>
-          <div style={styles.contentHeader}>
-            <h1 style={styles.contentTitle}>
-              {menuItems.find(item => item.id === activeItem)?.label || 'Ana Səhifə'}
-            </h1>
-            <p style={styles.contentSubtitle}>
-              {activeItem === 'home' ? 'Dashboarda xoş gəlmisiniz' : `${menuItems.find(item => item.id === activeItem)?.label} bölməsindesiniz`}
-            </p>
-          </div>
-          
-          <div style={styles.contentBody}>
-            {activeItem === 'filiallar' ? (
-              <Filiallar />
-            ) : activeItem === 'masajistler' ? (
-              <Masajistler />
-            ) : activeItem === 'masaj-novleri' ? (
-              <MasajNovleri />
-            ) : activeItem === 'receptions' ? (
-              <Reseptionlar />
-            ) : activeItem === 'gift-cards' ? (
-              <GiftCardsAdmin />
-            ) : activeItem === 'hesabat' ? (
-              <Hesabat />
-            ) : activeItem === 'cedvel' ? (
-              <Cedvel />
-            ) : (
-              <div style={styles.card}>
-                <h3 style={styles.cardTitle}>
-                  {menuItems.find(item => item.id === activeItem)?.label} Məlumatları
-                </h3>
-                <p style={styles.cardText}>
-                  Bu bölmədə {menuItems.find(item => item.id === activeItem)?.label.toLowerCase()} ilə bağlı bütün əməliyyatları həyata keçirə bilərsiniz.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        {renderContent()}
       </div>
     </div>
   );
@@ -233,7 +296,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minimumHeight: '80px'
+    minHeight: '80px'
   },
   
   logo: {
