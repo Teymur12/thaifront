@@ -58,11 +58,13 @@ export default function GundelikHesabat() {
     });
   };
 
-  // Ümumi statistikalar (Gift card sales daxil)
+  // Ümumi statistikalar (Gift card sales və BEH daxil)
   const getTotalStats = () => {
     if (!reportData || !reportData.branches) {
       return { 
-        totalRevenue: 0, 
+        totalRevenue: 0,
+        totalAdvancePayments: 0,
+        totalAdvanceCount: 0,
         totalGiftCardSales: 0, 
         totalGiftCardCount: 0,
         totalExpenses: 0, 
@@ -74,15 +76,19 @@ export default function GundelikHesabat() {
 
     const branches = Object.values(reportData.branches);
     const totalRevenue = branches.reduce((sum, branch) => sum + branch.revenue.total, 0);
+    const totalAdvancePayments = branches.reduce((sum, branch) => sum + (branch.advancePayments?.total || 0), 0);
+    const totalAdvanceCount = branches.reduce((sum, branch) => sum + (branch.advancePayments?.count || 0), 0);
     const totalGiftCardSales = branches.reduce((sum, branch) => sum + (branch.giftCardSales?.total || 0), 0);
     const totalGiftCardCount = branches.reduce((sum, branch) => sum + (branch.giftCardSales?.count || 0), 0);
     const totalExpenses = branches.reduce((sum, branch) => sum + branch.expenses.total, 0);
     const totalAppointments = branches.reduce((sum, branch) => sum + branch.appointments, 0);
-    const totalCombinedRevenue = totalRevenue + totalGiftCardSales;
+    const totalCombinedRevenue = totalRevenue + totalAdvancePayments + totalGiftCardSales;
     const netProfit = totalCombinedRevenue - totalExpenses;
 
     return { 
-      totalRevenue, 
+      totalRevenue,
+      totalAdvancePayments,
+      totalAdvanceCount,
       totalGiftCardSales, 
       totalGiftCardCount,
       totalExpenses, 
@@ -92,7 +98,7 @@ export default function GundelikHesabat() {
     };
   };
 
-  const { totalRevenue, totalGiftCardSales, totalGiftCardCount, totalExpenses, totalAppointments, netProfit, totalCombinedRevenue } = getTotalStats();
+  const { totalRevenue, totalAdvancePayments, totalAdvanceCount, totalGiftCardSales, totalGiftCardCount, totalExpenses, totalAppointments, netProfit, totalCombinedRevenue } = getTotalStats();
 
   const getPaymentMethodIcon = (method) => {
     switch (method) {
@@ -175,6 +181,17 @@ export default function GundelikHesabat() {
 
         <div style={styles.statCard}>
           <div style={styles.statIcon}>
+            <Clock size={24} color="#06b6d4" />
+          </div>
+          <div style={styles.statContent}>
+            <h3 style={styles.statTitle}>BEH Ödənişləri</h3>
+            <p style={styles.statValue}>{formatMebleg(totalAdvancePayments)}</p>
+            <p style={styles.statSubValue}>{totalAdvanceCount} ədəd</p>
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={styles.statIcon}>
             <Gift size={24} color="#8b5cf6" />
           </div>
           <div style={styles.statContent}>
@@ -249,7 +266,7 @@ export default function GundelikHesabat() {
                 <div style={styles.branchSection}>
                   <h4 style={styles.branchSectionTitle}>
                     <TrendingUp size={16} color="#10b981" />
-                    Masaj Gəlirləri
+                    Masaj Gəlirləri (Tamamlanan)
                   </h4>
                   <div style={styles.revenueGrid}>
                     {branch.revenue.cash > 0 && (
@@ -290,6 +307,54 @@ export default function GundelikHesabat() {
                     <strong>Masaj Toplamı: {formatMebleg(branch.revenue.total)}</strong>
                   </div>
                 </div>
+
+                {/* BEH Ödənişləri */}
+                {branch.advancePayments && branch.advancePayments.total > 0 && (
+                  <div style={styles.branchSection}>
+                    <h4 style={styles.branchSectionTitle}>
+                      <Clock size={16} color="#06b6d4" />
+                      BEH Ödənişləri (Bugün verilən)
+                    </h4>
+                    <div style={styles.revenueGrid}>
+                      {branch.advancePayments.cash > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('cash')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Nağd</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.advancePayments.cash)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {branch.advancePayments.card > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('card')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Bank Kartı</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.advancePayments.card)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {branch.advancePayments.terminal > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('terminal')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Terminal</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.advancePayments.terminal)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={styles.totalAdvance}>
+                      <strong>BEH Toplamı: {formatMebleg(branch.advancePayments.total)} ({branch.advancePayments.count} ədəd)</strong>
+                    </div>
+                  </div>
+                )}
 
                 {/* Hədiyyə Kartı Satışları */}
                 {branch.giftCardSales && branch.giftCardSales.total > 0 && (
@@ -367,10 +432,10 @@ export default function GundelikHesabat() {
                     <span>{branch.appointments} görüş</span>
                   </div>
                   <div style={styles.totalRevenueBadge}>
-                    Ümumi: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.giftCardSales?.total || 0))))}
+                    Ümumi: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.advancePayments?.total || 0) + (branch.giftCardSales?.total || 0))))}
                   </div>
                   <div style={styles.netProfitBadge}>
-                    Xalis: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.giftCardSales?.total || 0))) - branch.expenses.total)}
+                    Xalis: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.advancePayments?.total || 0) + (branch.giftCardSales?.total || 0))) - branch.expenses.total)}
                   </div>
                 </div>
               </div>
@@ -390,10 +455,14 @@ export default function GundelikHesabat() {
 
 const styles = {
   container: {
-    padding: '30px',
+    padding: '20px',
     maxWidth: '1400px',
     background: '#f8fafc',
-    minHeight: '100vh'
+    minHeight: '100vh',
+    margin: '0 auto',
+    '@media (max-width: 768px)': {
+      padding: '10px'
+    }
   },
 
   loadingContainer: {
@@ -418,12 +487,14 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
+    marginBottom: '20px',
     background: 'white',
-    padding: '24px',
+    padding: '20px',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e2e8f0'
+    border: '1px solid #e2e8f0',
+    flexWrap: 'wrap',
+    gap: '16px'
   },
 
   headerContent: {
@@ -439,7 +510,8 @@ const styles = {
     background: '#f0f4ff',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    flexShrink: 0
   },
 
   headerTitle: {
@@ -457,7 +529,9 @@ const styles = {
 
   dateSelector: {
     display: 'flex',
-    gap: '12px'
+    gap: '12px',
+    width: '100%',
+    maxWidth: '200px'
   },
 
   dateInput: {
@@ -467,7 +541,7 @@ const styles = {
     fontSize: '14px',
     background: 'white',
     cursor: 'pointer',
-    minWidth: '150px'
+    width: '100%'
   },
 
   errorContainer: {
@@ -486,30 +560,32 @@ const styles = {
 
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '16px',
+    marginBottom: '24px'
   },
 
   statCard: {
     background: 'white',
-    padding: '24px',
+    padding: '20px',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e2e8f0',
     display: 'flex',
     alignItems: 'center',
-    gap: '16px'
+    gap: '12px',
+    minHeight: '100px'
   },
 
   statIcon: {
-    width: '50px',
-    height: '50px',
+    width: '48px',
+    height: '48px',
     borderRadius: '10px',
     background: '#f8fafc',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    flexShrink: 0
   },
 
   statContent: {
@@ -524,10 +600,11 @@ const styles = {
   },
 
   statValue: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '700',
     color: '#1e293b',
-    margin: 0
+    margin: 0,
+    wordBreak: 'break-word'
   },
 
   statSubValue: {
@@ -544,19 +621,19 @@ const styles = {
   },
 
   branchesContainer: {
-    marginTop: '30px'
+    marginTop: '24px'
   },
 
   branchesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-    gap: '24px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '20px'
   },
 
   branchCard: {
     background: 'white',
     borderRadius: '12px',
-    padding: '24px',
+    padding: '20px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e2e8f0'
   },
@@ -565,40 +642,44 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    marginBottom: '20px',
-    paddingBottom: '16px',
-    borderBottom: '1px solid #f1f5f9'
+    marginBottom: '16px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid #f1f5f9',
+    flexWrap: 'wrap'
   },
 
   branchIcon: {
-    width: '40px',
-    height: '40px',
+    width: '36px',
+    height: '36px',
     borderRadius: '8px',
     background: '#f0f4ff',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    flexShrink: 0
   },
 
   branchName: {
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: '600',
     color: '#1e293b',
-    margin: 0
+    margin: 0,
+    wordBreak: 'break-word'
   },
 
   branchSection: {
-    marginBottom: '20px'
+    marginBottom: '16px'
   },
 
   branchSectionTitle: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    fontSize: '16px',
+    fontSize: '14px',
     fontWeight: '600',
     color: '#374151',
-    marginBottom: '12px'
+    marginBottom: '10px',
+    flexWrap: 'wrap'
   },
 
   revenueGrid: {
@@ -611,18 +692,20 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '8px 0'
+    padding: '6px 0',
+    flexWrap: 'wrap'
   },
 
   paymentIcon: {
-    width: '32px',
-    height: '32px',
+    width: '28px',
+    height: '28px',
     borderRadius: '6px',
     background: '#f8fafc',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#64748b'
+    color: '#64748b',
+    flexShrink: 0
   },
 
   paymentLabel: {
@@ -648,6 +731,15 @@ const styles = {
     textAlign: 'center'
   },
 
+  totalAdvance: {
+    marginTop: '12px',
+    padding: '12px',
+    background: '#ecfeff',
+    borderRadius: '8px',
+    color: '#0891b2',
+    textAlign: 'center'
+  },
+
   totalGiftCard: {
     marginTop: '12px',
     padding: '12px',
@@ -668,12 +760,17 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '8px 0',
-    borderBottom: '1px solid #f3f4f6'
+    borderBottom: '1px solid #f3f4f6',
+    gap: '12px',
+    flexWrap: 'wrap'
   },
 
   expenseDescription: {
-    fontSize: '14px',
-    color: '#374151'
+    fontSize: '13px',
+    color: '#374151',
+    wordBreak: 'break-word',
+    flex: 1,
+    minWidth: '120px'
   },
 
   expenseCategory: {
@@ -692,8 +789,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: '16px',
-    paddingTop: '16px',
+    marginTop: '12px',
+    paddingTop: '12px',
     borderTop: '1px solid #f1f5f9',
     flexWrap: 'wrap',
     gap: '8px'
@@ -702,31 +799,34 @@ const styles = {
   appointmentsBadge: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
+    gap: '4px',
+    padding: '6px 10px',
     background: '#fef3c7',
     color: '#d97706',
     borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '500'
+    fontSize: '11px',
+    fontWeight: '500',
+    whiteSpace: 'nowrap'
   },
 
   totalRevenueBadge: {
-    padding: '6px 12px',
+    padding: '6px 10px',
     background: '#dbeafe',
     color: '#1d4ed8',
     borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '600'
+    fontSize: '11px',
+    fontWeight: '600',
+    whiteSpace: 'nowrap'
   },
 
   netProfitBadge: {
-    padding: '6px 12px',
+    padding: '6px 10px',
     background: '#ecfdf5',
     color: '#059669',
     borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '600'
+    fontSize: '11px',
+    fontWeight: '600',
+    whiteSpace: 'nowrap'
   },
 
   emptyState: {

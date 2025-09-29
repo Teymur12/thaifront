@@ -9,18 +9,16 @@ import {
   Trash2, 
   Save, 
   X,
-  Filter,
   Download,
   RefreshCw,
-  Eye,
   CreditCard,
   Banknote,
   Monitor,
   Building2,
-  Users
+  Users,
+  AlertCircle
 } from 'lucide-react';
 import Cookies from 'js-cookie';
-
 
 export default function Hesabat() {
   const [activeTab, setActiveTab] = useState('gelir');
@@ -31,12 +29,7 @@ export default function Hesabat() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
-  });
 
-  // Form data for modal
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -44,20 +37,16 @@ export default function Hesabat() {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // Data states
   const [gelirler, setGelirler] = useState([]);
+  const [behler, setBehler] = useState([]); // BEH gəlirləri
   const [xercler, setXercler] = useState([]);
   const [randevular, setRandevular] = useState([]);
-
-  // User data state - client-side only
   const [userData, setUserData] = useState(null);
 
-  // Component mount olduqdan sonra client-side kodları işlət
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Ödəniş üsulları və kateqoriyalar
   const odenisUsullari = [
     { value: 'cash', label: 'Nağd', icon: <Banknote size={16} /> },
     { value: 'card', label: 'Bank Kartı', icon: <CreditCard size={16} /> },
@@ -74,7 +63,6 @@ export default function Hesabat() {
     'Digər xərclər'
   ];
 
-  // Get user data from localStorage - safe version
   const getUserData = () => {
     if (typeof window === 'undefined') return null;
     try {
@@ -86,34 +74,30 @@ export default function Hesabat() {
     }
   };
 
-  // Token alma funksiyası
   const getToken = () => {
     return Cookies.get('authToken');
   };
 
-  // API Base URL
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
 
-  // Get user data after mount
   useEffect(() => {
     if (!mounted) return;
-    
     const data = getUserData();
     setUserData(data);
   }, [mounted]);
 
-  // Initial data fetch
   useEffect(() => {
     if (mounted && userData) {
       fetchAllData();
     }
-  }, [selectedDate, dateRange, mounted, userData]);
+  }, [selectedDate, mounted, userData]);
 
   const fetchAllData = async () => {
     setLoading(true);
     try {
       await Promise.all([
         fetchAppointments(),
+        fetchAdvancePayments(),
         fetchExpenses(),
         fetchTodayAppointments()
       ]);
@@ -124,7 +108,7 @@ export default function Hesabat() {
     }
   };
 
-  // Fetch appointments (gəlirlər)
+  // Tamamlanmış randevular - tam və ya qalan ödənişlər
   const fetchAppointments = async () => {
     try {
       const token = getToken();
@@ -135,23 +119,68 @@ export default function Hesabat() {
       if (response.ok) {
         const appointments = await response.json();
         const completedAppointments = appointments.filter(apt => apt.status === 'completed');
-        setGelirler(completedAppointments.map(apt => ({
-          id: apt._id,
-          tarix: apt.startTime,
-          mebleg: apt.price,
-          odenisUsulu: apt.paymentMethod,
-          izzahat: `${apt.massageType?.name} - ${apt.customer?.name}`,
-          customer: apt.customer,
-          masseur: apt.masseur,
-          massageType: apt.massageType
-        })));
+        
+        setGelirler(completedAppointments.map(apt => {
+          // Əgər beh varsa və qalan ödəniş varsa
+          const hasAdvance = apt.advancePayment?.amount > 0;
+          const remainingAmount = hasAdvance && apt.remainingPayment?.amount 
+            ? apt.remainingPayment.amount 
+            : (hasAdvance ? 0 : apt.price);
+          
+          const paymentMethod = hasAdvance && apt.remainingPayment?.paymentMethod
+            ? apt.remainingPayment.paymentMethod
+            : apt.paymentMethod;
+
+          return {
+            id: apt._id,
+            tarix: apt.startTime,
+            mebleg: remainingAmount,
+            odenisUsulu: paymentMethod,
+            izzahat: `${apt.massageType?.name} - ${apt.customer?.name}`,
+            customer: apt.customer,
+            masseur: apt.masseur,
+            massageType: apt.massageType,
+            hasAdvance: hasAdvance,
+            advanceAmount: apt.advancePayment?.amount || 0,
+            totalPrice: apt.price
+          };
+        }));
       }
     } catch (error) {
       console.error('Appointments fetch error:', error);
     }
   };
 
-  // Fetch expenses (xərclər)
+  // BEH gəlirləri - bugün verilmiş behləri çək
+  const fetchAdvancePayments = async () => {
+  try {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/receptionist/advance-payments/date/${selectedDate}/${token}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const appointments = await response.json();
+      
+      setBehler(appointments.map(apt => ({
+        id: apt._id,
+        tarix: apt.advancePayment.paidAt,
+        mebleg: apt.advancePayment.amount,
+        odenisUsulu: apt.advancePayment.paymentMethod,
+        izzahat: `BEH - ${apt.massageType?.name} - ${apt.customer?.name}`,
+        customer: apt.customer,
+        masseur: apt.masseur,
+        massageType: apt.massageType,
+        appointmentDate: apt.startTime,
+        totalPrice: apt.price,
+        isBeh: true
+      })));
+    }
+  } catch (error) {
+    console.error('Advance payments fetch error:', error);
+  }
+};
+
   const fetchExpenses = async () => {
     try {
       const token = getToken();
@@ -175,7 +204,6 @@ export default function Hesabat() {
     }
   };
 
-  // Fetch today's appointments for overview
   const fetchTodayAppointments = async () => {
     try {
       const token = getToken();
@@ -193,7 +221,6 @@ export default function Hesabat() {
     }
   };
 
-  // Add expense
   const addExpense = async () => {
     if (!formData.amount || !formData.description || !formData.category) {
       alert('Bütün sahələri doldurun!');
@@ -233,7 +260,6 @@ export default function Hesabat() {
     }
   };
 
-  // Edit expense
   const editExpense = async () => {
     if (!formData.amount || !formData.description || !formData.category) {
       alert('Bütün sahələri doldurun!');
@@ -273,7 +299,6 @@ export default function Hesabat() {
     }
   };
 
-  // Delete expense
   const deleteExpense = async (id) => {
     if (!window.confirm('Bu xərc qeydini silmək istədiyinizdən əminsiniz?')) return;
 
@@ -300,18 +325,18 @@ export default function Hesabat() {
     }
   };
 
-  // Statistikalar
+  // Statistikalar - BEH daxil
   const totalGelir = gelirler.reduce((sum, item) => sum + item.mebleg, 0);
+  const totalBeh = behler.reduce((sum, item) => sum + item.mebleg, 0);
   const totalXerc = xercler.reduce((sum, item) => sum + item.mebleg, 0);
-  const netGelir = totalGelir - totalXerc;
+  const totalRevenue = totalGelir + totalBeh; // Ümumi gəlir
+  const netGelir = totalRevenue - totalXerc;
 
-  // Günlük statistikalar
   const todayCompleted = randevular.filter(r => r.status === 'completed').length;
   const todayScheduled = randevular.filter(r => r.status === 'scheduled').length;
-  const todayInProgress = randevular.filter(r => r.status === 'in-progress').length;
 
-  // Payment method statistics
-  const paymentStats = gelirler.reduce((acc, gelir) => {
+  // Ödəniş üsullarına görə statistika (gəlir + beh)
+  const paymentStats = [...gelirler, ...behler].reduce((acc, gelir) => {
     const method = gelir.odenisUsulu || 'unknown';
     acc[method] = (acc[method] || 0) + gelir.mebleg;
     return acc;
@@ -325,13 +350,15 @@ export default function Hesabat() {
     return new Date(tarix).toLocaleDateString('az-AZ', {
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit'
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   const handleAdd = (type) => {
     if (type === 'gelir') {
-      alert('Gəlirlər avtomatik olaraq randevulardan yaranır. Yeni gəlir əlavə etmək üçün randevu tamamlayın.');
+      alert('Gəlirlər avtomatik olaraq randevulardan yaranır.');
       return;
     }
 
@@ -348,7 +375,7 @@ export default function Hesabat() {
 
   const handleEdit = (item, type) => {
     if (type === 'gelir') {
-      alert('Gəlir qeydləri randevulardan yaranır və redaktə edilə bilməz.');
+      alert('Gəlir qeydləri redaktə edilə bilməz.');
       return;
     }
 
@@ -366,10 +393,9 @@ export default function Hesabat() {
 
   const handleDelete = async (id, type) => {
     if (type === 'gelir') {
-      alert('Gəlir qeydləri silinə bilməz. Randevu statusunu dəyişdirin.');
+      alert('Gəlir qeydləri silinə bilməz.');
       return;
     }
-
     await deleteExpense(id);
   };
 
@@ -405,13 +431,13 @@ export default function Hesabat() {
   const exportData = () => {
     if (typeof window === 'undefined') return;
     
-    const data = activeTab === 'gelir' ? gelirler : xercler;
+    const data = activeTab === 'gelir' ? [...gelirler, ...behler] : xercler;
     const csvContent = [
-      ['ID', 'Tarix', 'Məbləğ', 'İzahat', activeTab === 'gelir' ? 'Ödəniş Üsulu' : 'Kateqoriya'].join(','),
+      ['Tarix', 'Məbləğ', 'Növ', 'İzahat', activeTab === 'gelir' ? 'Ödəniş' : 'Kateqoriya'].join(','),
       ...data.map(item => [
-        item.id,
         formatTarix(item.tarix),
         item.mebleg,
+        item.isBeh ? 'BEH' : 'Ödəniş',
         `"${item.izzahat}"`,
         activeTab === 'gelir' ? getPaymentLabel(item.odenisUsulu) : item.category
       ].join(','))
@@ -425,117 +451,107 @@ export default function Hesabat() {
     a.click();
   };
 
-  // Server-side render zamanı loading göstər
   if (!mounted) {
     return (
-      <div style={styles.container}>
-        <div style={styles.loadingContainer}>
-          <div style={styles.loading}>Yüklənir...</div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Yüklənir...</div>
       </div>
     );
   }
 
   if (!userData) {
     return (
-      <div style={styles.errorContainer}>
-        <div style={styles.error}>İstifadəçi məlumatları tapılmadı. Zəhmət olmasa yenidən daxil olun.</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ color: '#ef4444' }}>İstifadəçi məlumatları tapılmadı</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div style={{ padding: '30px', maxWidth: '1400px', background: '#f8fafc', minHeight: '100vh' }}>
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Building2 size={24} color="#667eea" />
           <div>
-            <h1 style={styles.title}>Maliyyə Hesabatı</h1>
-            <p style={styles.subtitle}>{userData.branch?.name || 'Filial'}</p>
+            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>Maliyyə Hesabatı</h1>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>{userData.branch?.name || 'Filial'}</p>
           </div>
         </div>
         
-        <div style={styles.headerRight}>
-          <div style={styles.dateSelector}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <Calendar size={16} />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              style={styles.dateInput}
+              style={{ border: 'none', background: 'transparent', fontSize: '14px', color: '#374151' }}
             />
           </div>
-          <button onClick={fetchAllData} style={styles.refreshButton} disabled={loading}>
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <button onClick={fetchAllData} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', fontSize: '14px' }} disabled={loading}>
+            <RefreshCw size={16} />
             Yenilə
           </button>
         </div>
       </div>
 
-      {/* Statistik Kartları */}
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
+      {/* Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <TrendingUp size={24} color="#10b981" />
           </div>
-          <div style={styles.statContent}>
-            <h3 style={styles.statTitle}>Günlük Gəlir</h3>
-            <p style={styles.statValue}>{formatMebleg(totalGelir)}</p>
-            <p style={styles.statSubtext}>{gelirler.length} ödəniş</p>
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', margin: '0 0 8px 0' }}>Ümumi Gəlir</h3>
+            <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>{formatMebleg(totalRevenue)}</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
+              {gelirler.length} ödəniş + {behler.length} BEH
+            </p>
           </div>
         </div>
 
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AlertCircle size={24} color="#f59e0b" />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', margin: '0 0 8px 0' }}>BEH Gəlirləri</h3>
+            <p style={{ fontSize: '28px', fontWeight: '700', color: '#f59e0b', margin: '0 0 4px 0' }}>{formatMebleg(totalBeh)}</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>{behler.length} qabaqcadan ödəniş</p>
+          </div>
+        </div>
+
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <TrendingDown size={24} color="#ef4444" />
           </div>
-          <div style={styles.statContent}>
-            <h3 style={styles.statTitle}>Günlük Xərc</h3>
-            <p style={styles.statValue}>{formatMebleg(totalXerc)}</p>
-            <p style={styles.statSubtext}>{xercler.length} xərc</p>
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', margin: '0 0 8px 0' }}>Günlük Xərc</h3>
+            <p style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>{formatMebleg(totalXerc)}</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>{xercler.length} xərc</p>
           </div>
         </div>
 
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
+        <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: netGelir >= 0 ? '#ecfdf5' : '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <DollarSign size={24} color={netGelir >= 0 ? "#10b981" : "#ef4444"} />
           </div>
-          <div style={styles.statContent}>
-            <h3 style={styles.statTitle}>Xalis Gəlir</h3>
-            <p style={{
-              ...styles.statValue,
-              color: netGelir >= 0 ? "#10b981" : "#ef4444"
-            }}>
-              {formatMebleg(netGelir)}
-            </p>
-            <p style={styles.statSubtext}>
-              {netGelir >= 0 ? 'Mənfəət' : 'Zərər'}
-            </p>
-          </div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <Users size={24} color="#3b82f6" />
-          </div>
-          <div style={styles.statContent}>
-            <h3 style={styles.statTitle}>Günlük Randevular</h3>
-            <p style={styles.statValue}>{randevular.length}</p>
-            <p style={styles.statSubtext}>
-              {todayCompleted} tamamlandı, {todayScheduled} təyin edilib
-            </p>
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', margin: '0 0 8px 0' }}>Xalis Gəlir</h3>
+            <p style={{ fontSize: '28px', fontWeight: '700', color: netGelir >= 0 ? "#10b981" : "#ef4444", margin: '0 0 4px 0' }}>{formatMebleg(netGelir)}</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>{netGelir >= 0 ? 'Mənfəət' : 'Zərər'}</p>
           </div>
         </div>
       </div>
 
-      {/* Payment Method Stats */}
+      {/* Payment Stats */}
       {Object.keys(paymentStats).length > 0 && (
-        <div style={styles.paymentStatsContainer}>
-          <h3 style={styles.paymentStatsTitle}>Ödəniş Üsullarına görə:</h3>
-          <div style={styles.paymentStats}>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#374151', margin: '0 0 16px 0' }}>Ödəniş Üsullarına görə:</h3>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             {Object.entries(paymentStats).map(([method, amount]) => (
-              <div key={method} style={styles.paymentStatItem}>
+              <div key={method} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
                 {getPaymentIcon(method)}
                 <span>{getPaymentLabel(method)}: {formatMebleg(amount)}</span>
               </div>
@@ -544,156 +560,217 @@ export default function Hesabat() {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div style={styles.tabContainer}>
-        <div style={styles.tabNav}>
+      {/* Tabs */}
+      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', alignItems: 'center' }}>
           <button
             onClick={() => setActiveTab('gelir')}
             style={{
-              ...styles.tabButton,
-              backgroundColor: activeTab === 'gelir' ? '#667eea' : 'transparent',
-              color: activeTab === 'gelir' ? 'white' : '#64748b'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '16px 24px',
+              border: 'none',
+              background: activeTab === 'gelir' ? '#667eea' : 'transparent',
+              color: activeTab === 'gelir' ? 'white' : '#64748b',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600'
             }}
           >
             <TrendingUp size={18} />
-            Gəlirlər ({gelirler.length})
+            Gəlirlər ({gelirler.length + behler.length})
           </button>
           <button
             onClick={() => setActiveTab('xerc')}
             style={{
-              ...styles.tabButton,
-              backgroundColor: activeTab === 'xerc' ? '#667eea' : 'transparent',
-              color: activeTab === 'xerc' ? 'white' : '#64748b'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '16px 24px',
+              border: 'none',
+              background: activeTab === 'xerc' ? '#667eea' : 'transparent',
+              color: activeTab === 'xerc' ? 'white' : '#64748b',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600'
             }}
           >
             <TrendingDown size={18} />
             Xərclər ({xercler.length})
           </button>
           
-          {/* Action Buttons */}
-          <div style={styles.actionButtons}>
-            <button onClick={exportData} style={styles.exportButton}>
+          <div style={{ marginLeft: 'auto', padding: '12px 20px', display: 'flex', gap: '12px' }}>
+            <button onClick={exportData} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer' }}>
               <Download size={16} />
               İxrac Et
             </button>
-            <button onClick={() => handleAdd(activeTab)} style={styles.addButton}>
+            <button onClick={() => handleAdd(activeTab)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
               <Plus size={18} />
               {activeTab === 'gelir' ? 'Gəlir' : 'Xərc'} Əlavə Et
             </button>
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div style={styles.tabContent}>
+        <div style={{ padding: '24px' }}>
           {loading && (
-            <div style={styles.loadingOverlay}>
-              <RefreshCw size={24} className="animate-spin" />
-              <span>Yüklənir...</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+              <RefreshCw size={24} />
+              <span style={{ marginLeft: '12px' }}>Yüklənir...</span>
             </div>
           )}
 
           {activeTab === 'gelir' ? (
-            // Gəlir Cədvəli
-            <div style={styles.tableContainer}>
-              {gelirler.length === 0 ? (
-                <div style={styles.emptyState}>
-                  <TrendingUp size={48} color="#9ca3af" />
+            <div>
+              {gelirler.length === 0 && behler.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+                  <TrendingUp size={48} />
                   <h3>Gəlir tapılmadı</h3>
-                  <p>Seçilmiş tarixdə tamamlanmış randevu yoxdur</p>
+                  <p>Seçilmiş tarixdə gəlir yoxdur</p>
                 </div>
               ) : (
-                <table style={styles.table}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={styles.tableHeader}>
-                      <th style={styles.th}>Tarix</th>
-                      <th style={styles.th}>Müştəri</th>
-                      <th style={styles.th}>Xidmət</th>
-                      <th style={styles.th}>Məbləğ</th>
-                      <th style={styles.th}>Ödəniş</th>
-                      <th style={styles.th}>Masajist</th>
+                    <tr style={{ background: '#f8fafc' }}>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Növ</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Müştəri</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Xidmət</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Məbləğ</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Ödəniş</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {gelirler.map((gelir) => (
-                      <tr key={gelir.id} style={styles.tableRow}>
-                        <td style={styles.td}>{formatTarix(gelir.tarix)}</td>
-                        <td style={styles.td}>
+                    {/* BEH gəlirləri */}
+                    {behler.map((beh) => (
+                      <tr key={`beh-${beh.id}`} style={{ borderBottom: '1px solid #f3f4f6', background: '#fef3c7' }}>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>{formatTarix(beh.tarix)}</td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <span style={{ background: '#f59e0b', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>BEH</span>
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
                           <div>
-                            <div style={styles.customerName}>{gelir.customer?.name}</div>
-                            <div style={styles.customerPhone}>{gelir.customer?.phone}</div>
+                            <div style={{ fontWeight: '600', color: '#1e293b' }}>{beh.customer?.name}</div>
+                            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{beh.customer?.phone}</div>
                           </div>
                         </td>
-                        <td style={styles.td}>{gelir.massageType?.name}</td>
-                        <td style={styles.td}>
-                          <span style={styles.gelirMebleg}>{formatMebleg(gelir.mebleg)}</span>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <div>
+                            <div>{beh.massageType?.name}</div>
+                            <div style={{ fontSize: '11px', color: '#92400e', marginTop: '2px' }}>
+                              Randevu: {new Date(beh.appointmentDate).toLocaleDateString('az-AZ')}
+                            </div>
+                          </div>
                         </td>
-                        <td style={styles.td}>
-                          <div style={styles.paymentMethod}>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <span style={{ color: '#f59e0b', fontWeight: '600' }}>{formatMebleg(beh.mebleg)}</span>
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {getPaymentIcon(beh.odenisUsulu)}
+                            <span>{getPaymentLabel(beh.odenisUsulu)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    
+                    {/* Normal gəlirlər */}
+                    {gelirler.map((gelir) => (
+                      <tr key={gelir.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>{formatTarix(gelir.tarix)}</td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          {gelir.hasAdvance ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ background: '#10b981', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>QALAN</span>
+                              <span style={{ fontSize: '10px', color: '#6b7280' }}>BEH: {formatMebleg(gelir.advanceAmount)}</span>
+                            </div>
+                          ) : (
+                            <span style={{ background: '#10b981', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>TAM</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <div>
+                            <div style={{ fontWeight: '600', color: '#1e293b' }}>{gelir.customer?.name}</div>
+                            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{gelir.customer?.phone}</div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <div>
+                            <div>{gelir.massageType?.name}</div>
+                            {gelir.hasAdvance && (
+                              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
+                                Ümumi: {formatMebleg(gelir.totalPrice)}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <span style={{ color: '#10b981', fontWeight: '600' }}>{formatMebleg(gelir.mebleg)}</span>
+                        </td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {getPaymentIcon(gelir.odenisUsulu)}
                             <span>{getPaymentLabel(gelir.odenisUsulu)}</span>
                           </div>
                         </td>
-                        <td style={styles.td}>{gelir.masseur?.name}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={styles.totalRow}>
-                      <td style={styles.totalTd} colSpan="3"><strong>Toplam Gəlir:</strong></td>
-                      <td style={styles.totalTd}>
-                        <strong style={styles.totalGelir}>{formatMebleg(totalGelir)}</strong>
+                    <tr style={{ borderTop: '2px solid #e5e7eb', background: '#f9fafb' }}>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }} colSpan="4"><strong>Toplam Gəlir:</strong></td>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                        <strong style={{ color: '#10b981', fontSize: '16px' }}>{formatMebleg(totalRevenue)}</strong>
                       </td>
-                      <td style={styles.totalTd} colSpan="2"></td>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}></td>
                     </tr>
                   </tfoot>
                 </table>
               )}
             </div>
           ) : (
-            // Xərc Cədvəli
-            <div style={styles.tableContainer}>
+            <div>
               {xercler.length === 0 ? (
-                <div style={styles.emptyState}>
-                  <TrendingDown size={48} color="#9ca3af" />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+                  <TrendingDown size={48} />
                   <h3>Xərc tapılmadı</h3>
-                  <p>Seçilmiş tarixdə xərc qeydi yoxdur</p>
+                  <p>Seçilmiş tarixdə xərc yoxdur</p>
                 </div>
               ) : (
-                <table style={styles.table}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={styles.tableHeader}>
-                      <th style={styles.th}>Tarix</th>
-                      <th style={styles.th}>Məbləğ</th>
-                      <th style={styles.th}>Kateqoriya</th>
-                      <th style={styles.th}>İzahat</th>
-                      <th style={styles.th}>Yaradıb</th>
-                      <th style={styles.th}>Əməliyyatlar</th>
+                    <tr style={{ background: '#f8fafc' }}>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Tarix</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Məbləğ</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Kateqoriya</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>İzahat</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Yaradıb</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151', borderBottom: '2px solid #e5e7eb' }}>Əməliyyat</th>
                     </tr>
                   </thead>
                   <tbody>
                     {xercler.map((xerc) => (
-                      <tr key={xerc.id} style={styles.tableRow}>
-                        <td style={styles.td}>{formatTarix(xerc.tarix)}</td>
-                        <td style={styles.td}>
-                          <span style={styles.xercMebleg}>{formatMebleg(xerc.mebleg)}</span>
+                      <tr key={xerc.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>{formatTarix(xerc.tarix)}</td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <span style={{ color: '#ef4444', fontWeight: '600' }}>{formatMebleg(xerc.mebleg)}</span>
                         </td>
-                        <td style={styles.td}>
-                          <span style={styles.category}>{xerc.category}</span>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500' }}>{xerc.category}</span>
                         </td>
-                        <td style={styles.td}>{xerc.izzahat}</td>
-                        <td style={styles.td}>{xerc.createdBy?.name || 'Sistem'}</td>
-                        <td style={styles.td}>
-                          <div style={styles.actionButtonsCell}>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>{xerc.izzahat}</td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>{xerc.createdBy?.name || 'Sistem'}</td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
                             <button
                               onClick={() => handleEdit(xerc, 'xerc')}
-                              style={styles.editButton}
+                              style={{ background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                               title="Redaktə et"
                             >
                               <Edit size={16} />
                             </button>
                             <button
                               onClick={() => handleDelete(xerc.id, 'xerc')}
-                              style={styles.deleteButton}
+                              style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                               title="Sil"
                             >
                               <Trash2 size={16} />
@@ -704,12 +781,12 @@ export default function Hesabat() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={styles.totalRow}>
-                      <td style={styles.totalTd}><strong>Toplam Xərc:</strong></td>
-                      <td style={styles.totalTd}>
-                        <strong style={styles.totalXerc}>{formatMebleg(totalXerc)}</strong>
+                    <tr style={{ borderTop: '2px solid #e5e7eb', background: '#f9fafb' }}>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}><strong>Toplam Xərc:</strong></td>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }}>
+                        <strong style={{ color: '#ef4444', fontSize: '16px' }}>{formatMebleg(totalXerc)}</strong>
                       </td>
-                      <td style={styles.totalTd} colSpan="4"></td>
+                      <td style={{ padding: '16px 20px', fontSize: '14px', color: '#374151' }} colSpan="4"></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -721,47 +798,47 @@ export default function Hesabat() {
 
       {/* Modal */}
       {showModal && (
-        <div style={styles.modal}>
-          <div style={styles.modalContent}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', borderRadius: '12px', width: '90%', maxWidth: '500px', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
                 {modalType === 'add' ? 'Yeni ' : 'Redaktə et: '}
                 {editingType === 'gelir' ? 'Gəlir' : 'Xərc'}
               </h3>
-              <button onClick={closeModal} style={styles.closeButton}>
+              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={styles.modalBody}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Tarix:</label>
+            <div style={{ padding: '24px', maxHeight: '60vh', overflowY: 'auto' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>Tarix:</label>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  style={styles.input}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Məbləğ (₼):</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>Məbləğ (₼):</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  style={styles.input}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
                   placeholder="Məbləği daxil edin"
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Kateqoriya:</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>Kateqoriya:</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  style={styles.select}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', background: 'white', boxSizing: 'border-box' }}
                 >
                   {xercKateqoriyalari.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -769,23 +846,23 @@ export default function Hesabat() {
                 </select>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>İzahat:</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>İzahat:</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  style={styles.textarea}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
                   placeholder="Xərcin təfərrüatını daxil edin"
                   rows="3"
                 />
               </div>
             </div>
 
-            <div style={styles.modalFooter}>
-              <button onClick={closeModal} style={styles.cancelButton} disabled={loading}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <button onClick={closeModal} style={{ background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }} disabled={loading}>
                 Ləğv et
               </button>
-              <button onClick={handleSave} style={styles.saveButton} disabled={loading}>
+              <button onClick={handleSave} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} disabled={loading}>
                 <Save size={16} />
                 {loading ? 'Saxlanır...' : 'Yadda Saxla'}
               </button>
@@ -795,541 +872,4 @@ export default function Hesabat() {
       )}
     </div>
   );
-}
-
-const styles = {
-  container: {
-    padding: '30px',
-    maxWidth: '1400px',
-    background: '#f8fafc',
-    minHeight: '100vh'
-  },
-
-  loadingContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '400px'
-  },
-
-  loading: {
-    fontSize: '18px',
-    color: '#6b7280'
-  },
-
-  errorContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '400px'
-  },
-
-  error: {
-    fontSize: '18px',
-    color: '#ef4444'
-  },
-
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
-    background: 'white',
-    padding: '20px',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-  },
-
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
-  },
-
-  title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1e293b',
-    margin: '0 0 4px 0'
-  },
-
-  subtitle: {
-    fontSize: '14px',
-    color: '#64748b',
-    margin: 0
-  },
-
-  headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
-  },
-
-  dateSelector: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#f8fafc',
-    padding: '8px 12px',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0'
-  },
-
-  dateInput: {
-    border: 'none',
-    background: 'transparent',
-    fontSize: '14px',
-    color: '#374151'
-  },
-
-  refreshButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontSize: '14px'
-  },
-
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
-  },
-
-  statCard: {
-    background: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e2e8f0',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
-  },
-
-  statIcon: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '12px',
-    background: '#f8fafc',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-
-  statContent: {
-    flex: 1
-  },
-
-  statTitle: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#64748b',
-    margin: '0 0 8px 0'
-  },
-
-  statValue: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1e293b',
-    margin: '0 0 4px 0'
-  },
-
-  statSubtext: {
-    fontSize: '12px',
-    color: '#9ca3af',
-    margin: 0
-  },
-
-  paymentStatsContainer: {
-    background: 'white',
-    padding: '20px',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    marginBottom: '20px'
-  },
-
-  paymentStatsTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#374151',
-    margin: '0 0 16px 0'
-  },
-
-  paymentStats: {
-    display: 'flex',
-    gap: '20px',
-    flexWrap: 'wrap'
-  },
-
-  paymentStatItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#f8fafc',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151'
-  },
-
-  tabContainer: {
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden'
-  },
-
-  tabNav: {
-    display: 'flex',
-    borderBottom: '1px solid #e2e8f0',
-    background: '#f8fafc',
-    position: 'relative',
-    alignItems: 'center'
-  },
-
-  tabButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '16px 24px',
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
-    borderRadius: '0'
-  },
-
-  actionButtons: {
-    marginLeft: 'auto',
-    padding: '12px 20px',
-    display: 'flex',
-    gap: '12px'
-  },
-
-  exportButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '8px 12px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer'
-  },
-
-  addButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    background: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease'
-  },
-
-  tabContent: {
-    padding: '24px',
-    position: 'relative'
-  },
-
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(255, 255, 255, 0.8)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '12px',
-    zIndex: 10
-  },
-
-  tableContainer: {
-    overflowX: 'auto'
-  },
-
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '60px 20px',
-    textAlign: 'center',
-    color: '#9ca3af'
-  },
-
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: '700px'
-  },
-
-  tableHeader: {
-    background: '#f8fafc'
-  },
-
-  th: {
-    padding: '16px 20px',
-    textAlign: 'left',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    borderBottom: '2px solid #e5e7eb'
-  },
-
-  tableRow: {
-    borderBottom: '1px solid #f3f4f6',
-    transition: 'background-color 0.2s ease'
-  },
-
-  td: {
-    padding: '16px 20px',
-    fontSize: '14px',
-    color: '#374151'
-  },
-
-  totalRow: {
-    borderTop: '2px solid #e5e7eb',
-    background: '#f9fafb'
-  },
-
-  totalTd: {
-    padding: '16px 20px',
-    fontSize: '14px',
-    color: '#374151'
-  },
-
-  customerName: {
-    fontWeight: '600',
-    color: '#1e293b'
-  },
-
-  customerPhone: {
-    fontSize: '12px',
-    color: '#6b7280',
-    marginTop: '2px'
-  },
-
-  gelirMebleg: {
-    color: '#10b981',
-    fontWeight: '600'
-  },
-
-  xercMebleg: {
-    color: '#ef4444',
-    fontWeight: '600'
-  },
-
-  totalGelir: {
-    color: '#10b981',
-    fontSize: '16px'
-  },
-
-  totalXerc: {
-    color: '#ef4444',
-    fontSize: '16px'
-  },
-
-  paymentMethod: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px'
-  },
-
-  category: {
-    background: '#e0e7ff',
-    color: '#3730a3',
-    padding: '4px 8px',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '500'
-  },
-
-  actionButtonsCell: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center'
-  },
-
-  editButton: {
-    background: '#0ea5e9',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '6px 8px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s ease'
-  },
-
-  deleteButton: {
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '6px 8px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.2s ease'
-  },
-
-  modal: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  },
-
-  modalContent: {
-    background: 'white',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '500px',
-    maxHeight: '90vh',
-    overflow: 'hidden',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-  },
-
-  modalHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '20px 24px',
-    borderBottom: '1px solid #e2e8f0',
-    background: '#f8fafc'
-  },
-
-  modalTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#1e293b',
-    margin: 0
-  },
-
-  closeButton: {
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#64748b',
-    padding: '4px'
-  },
-
-  modalBody: {
-    padding: '24px',
-    maxHeight: '60vh',
-    overflowY: 'auto'
-  },
-
-  formGroup: {
-    marginBottom: '20px'
-  },
-
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: '6px'
-  },
-
-  input: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#374151',
-    transition: 'border-color 0.2s ease',
-    boxSizing: 'border-box'
-  },
-
-  select: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#374151',
-    background: 'white',
-    transition: 'border-color 0.2s ease',
-    boxSizing: 'border-box'
-  },
-
-  textarea: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#374151',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    transition: 'border-color 0.2s ease',
-    boxSizing: 'border-box'
-  },
-
-  modalFooter: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    padding: '20px 24px',
-    borderTop: '1px solid #e2e8f0',
-    background: '#f8fafc'
-  },
-
-  cancelButton: {
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '10px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease'
-  },
-
-  saveButton: {
-    background: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '10px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    transition: 'all 0.2s ease'
-  }
-};
+} 

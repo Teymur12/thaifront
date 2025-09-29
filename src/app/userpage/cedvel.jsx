@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
   Building2, 
-  Grid3X3, 
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -18,15 +17,12 @@ import {
   Monitor,
   CheckCircle,
   Clock,
-  Search,
-  ChevronDown,
-  Gift
+  Gift,
+  DollarSign
 } from 'lucide-react';
 
 import Cookies from 'js-cookie';
 
-
-// Daily Schedule Component (Masajist-based)
 export default function Cedvel() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState([]);
@@ -40,6 +36,7 @@ export default function Cedvel() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   
@@ -51,7 +48,11 @@ export default function Cedvel() {
     price: 0,
     startTime: '',
     notes: '',
-    giftCard: null
+    giftCard: null,
+    advancePayment: {
+      amount: 0,
+      paymentMethod: ''
+    }
   });
 
   const [customerFormData, setCustomerFormData] = useState({
@@ -67,16 +68,18 @@ export default function Cedvel() {
 
   // Gift Card states
   const [giftCardNumber, setGiftCardNumber] = useState('');
-  const [showGiftCardValidation, setShowGiftCardValidation] = useState(false);
   const [validatingGiftCard, setValidatingGiftCard] = useState(false);
   const [giftCardError, setGiftCardError] = useState('');
 
-  // Component mount olduqdan sonra client-side kodları işlət
+  // Advance payment states
+  const [showAdvancePayment, setShowAdvancePayment] = useState(false);
+  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [advanceMethod, setAdvanceMethod] = useState('');
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Get user data from localStorage - safe version
   const getUserData = () => {
     if (typeof window === 'undefined') return null;
     try {
@@ -88,29 +91,22 @@ export default function Cedvel() {
     }
   };
 
-  // Token alma funksiyası
-   const getToken = () => {
-     return Cookies.get('authToken');
-   };
- 
+  const getToken = () => {
+    return Cookies.get('authToken');
+  };
 
-  // API Base URL
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
 
-  // User branch info - yalnız client-side
   const [userData, setUserData] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
 
-  // Get user data after mount
   useEffect(() => {
     if (!mounted) return;
-    
     const data = getUserData();
     setUserData(data);
     setUserBranch(data?.branch);
   }, [mounted]);
 
-  // Generate time slots (10:30 - 21:00, 15-minute intervals)
   const generateTimeSlots = () => {
     const slots = [];
     let hour = 10;
@@ -129,14 +125,12 @@ export default function Cedvel() {
 
   const hours = generateTimeSlots();
 
-  // Fetch all initial data
   useEffect(() => {
     if (mounted && userData && userBranch) {
       fetchInitialData();
     }
   }, [mounted, userData, userBranch]);
 
-  // Fetch appointments when date changes
   useEffect(() => {
     if (mounted && userData && userBranch && masseurs.length > 0) {
       fetchDayAppointments();
@@ -148,7 +142,6 @@ export default function Cedvel() {
     try {
       const token = getToken();
       
-      // Fetch customers, masseurs, and massage types
       const [customersRes, masseursRes, massageTypesRes] = await Promise.all([
         fetch(`${API_BASE}/receptionist/customers/${token}`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -201,7 +194,6 @@ export default function Cedvel() {
     }
   };
 
-  // Format date for API (YYYY-MM-DD)
   const formatDateForAPI = (date) => {
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -209,7 +201,6 @@ export default function Cedvel() {
     return `${year}-${month}-${day}`;
   };
 
-  // Format date for display (DD.MM.YYYY)
   const formatDateDisplay = (date) => {
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -217,14 +208,12 @@ export default function Cedvel() {
     return `${day}.${month}.${year}`;
   };
 
-  // Change date
   const changeDate = (direction) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + direction);
     setSelectedDate(newDate);
   };
 
-  // Validate gift card
   const validateGiftCard = async (cardNumber) => {
     if (!cardNumber.trim()) {
       setGiftCardError('');
@@ -246,16 +235,14 @@ export default function Cedvel() {
       if (response.ok && data.valid) {
         const giftCard = data.giftCard;
         
-        // Auto-fill form with gift card data
         setFormData(prev => ({
           ...prev,
           giftCard: giftCard,
           massageType: giftCard.massageType._id,
           duration: giftCard.duration,
-          price: 0 // Gift card means free service
+          price: 0
         }));
 
-        // If gift card has associated customer, select them
         if (giftCard.purchasedBy) {
           setSelectedCustomer(giftCard.purchasedBy);
           setSearchPhone(giftCard.purchasedBy.phone);
@@ -276,7 +263,6 @@ export default function Cedvel() {
     }
   };
 
-  // Search customers by phone
   const searchCustomersByPhone = async (phone) => {
     if (!phone.trim()) {
       setFoundCustomers([]);
@@ -285,9 +271,8 @@ export default function Cedvel() {
     }
 
     try {
-      // First search by exact phone match
       const token = getToken();
-      const response = await fetch(`${API_BASE}/receptionist/customers/search/phone/${phone}/${token}`, {
+      const response = await fetch(`${API_BASE}/receptionist/customers/${token}/search/phone/${phone}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -296,7 +281,6 @@ export default function Cedvel() {
         setFoundCustomers([customer]);
         setShowCustomerDropdown(true);
       } else {
-        // If no exact match, search among all customers
         const filteredCustomers = customers.filter(customer => 
           customer.phone.includes(phone) || customer.name.toLowerCase().includes(phone.toLowerCase())
         );
@@ -305,7 +289,6 @@ export default function Cedvel() {
       }
     } catch (error) {
       console.error('Customer search error:', error);
-      // Fallback to local search
       const filteredCustomers = customers.filter(customer => 
         customer.phone.includes(phone) || customer.name.toLowerCase().includes(phone.toLowerCase())
       );
@@ -314,7 +297,6 @@ export default function Cedvel() {
     }
   };
 
-  // Handle customer selection from dropdown
   const selectCustomer = (customer) => {
     setSelectedCustomer(customer);
     setFormData(prev => ({ ...prev, customer: customer._id }));
@@ -322,7 +304,6 @@ export default function Cedvel() {
     setShowCustomerDropdown(false);
   };
 
-  // Add new customer
   const addCustomer = async () => {
     if (!customerFormData.name.trim() || !customerFormData.phone.trim()) {
       alert('Ad və telefon nömrəsi mütləqdir!');
@@ -359,7 +340,6 @@ export default function Cedvel() {
     }
   };
 
-  // Calculate price based on massage type and duration
   const calculatePrice = (massageTypeId, durationMinutes) => {
     const massageType = massageTypes.find(mt => mt._id === massageTypeId);
     if (!massageType) return 0;
@@ -368,7 +348,6 @@ export default function Cedvel() {
     return duration ? duration.price : 0;
   };
 
-  // Handle massage type or duration change
   const handleMassageTypeChange = (massageTypeId) => {
     setFormData(prev => {
       const newFormData = { ...prev, massageType: massageTypeId };
@@ -389,7 +368,6 @@ export default function Cedvel() {
     });
   };
 
-  // Add appointment
   const addAppointment = async () => {
     if (!formData.customer || !formData.masseur || !formData.massageType || !formData.duration) {
       alert('Zəhmət olmasa bütün sahələri doldurun!');
@@ -405,7 +383,6 @@ export default function Cedvel() {
       const token = getToken();
       const [hour, minute] = selectedSlot.time.split(':');
       
-      // Create start time from selected date and time
       const startTime = new Date(selectedDate);
       startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
       
@@ -421,7 +398,6 @@ export default function Cedvel() {
         return;
       }
 
-      // Appointment model-ə uyğun data
       const appointmentData = {
         customer: formData.customer,
         masseur: formData.masseur,
@@ -436,6 +412,14 @@ export default function Cedvel() {
         createdBy: userData.id
       };
 
+      // Beh əlavə et
+      if (showAdvancePayment && advanceAmount && advanceMethod) {
+        appointmentData.advancePayment = {
+          amount: parseFloat(advanceAmount),
+          paymentMethod: advanceMethod
+        };
+      }
+
       const response = await fetch(`${API_BASE}/receptionist/appointments/${token}`, {
         method: 'POST',
         headers: {
@@ -448,7 +432,6 @@ export default function Cedvel() {
       if (response.ok) {
         const newAppointment = await response.json();
         
-        // If using gift card, mark it as used
         if (formData.giftCard) {
           try {
             await fetch(`${API_BASE}/gift-cards/use/${formData.giftCard.cardNumber}/${token}`, {
@@ -468,9 +451,11 @@ export default function Cedvel() {
           }
         }
 
-        await fetchDayAppointments(); // Refresh appointments
+        await fetchDayAppointments();
         resetForm();
-        alert(formData.giftCard ? 'Randevu yaradıldı və hədiyyə kartı istifadə edildi!' : 'Randevu uğurla əlavə edildi!');
+        alert(showAdvancePayment && advanceAmount ? 
+          `Randevu yaradıldı və ${advanceAmount} AZN beh qeydə alındı!` : 
+          'Randevu uğurla əlavə edildi!');
       } else {
         const error = await response.json();
         alert('Xəta: ' + (error.message || 'Randevu əlavə edilmədi'));
@@ -481,7 +466,6 @@ export default function Cedvel() {
     }
   };
 
-  // Complete appointment with payment
   const completeAppointment = async (paymentMethod) => {
     if (!selectedAppointment) return;
 
@@ -497,7 +481,7 @@ export default function Cedvel() {
       });
 
       if (response.ok) {
-        await fetchDayAppointments(); // Refresh appointments
+        await fetchDayAppointments();
         setShowAppointmentModal(false);
         setSelectedAppointment(null);
         alert('Randevu tamamlandı və ödəniş qeydə alındı!');
@@ -511,7 +495,100 @@ export default function Cedvel() {
     }
   };
 
-  // Reset form
+  // Edit appointment
+  const openEditModal = (appointment) => {
+    setSelectedAppointment(appointment);
+    setFormData({
+      customer: appointment.customer._id,
+      masseur: appointment.masseur._id,
+      massageType: appointment.massageType._id,
+      duration: appointment.duration.toString(),
+      price: appointment.price,
+      startTime: new Date(appointment.startTime).toTimeString().slice(0, 5),
+      notes: appointment.notes || '',
+      giftCard: null,
+      advancePayment: appointment.advancePayment || { amount: 0, paymentMethod: '' }
+    });
+    setSelectedCustomer(appointment.customer);
+    setSearchPhone(appointment.customer.phone);
+    setShowEditModal(true);
+  };
+
+  const updateAppointment = async () => {
+    if (!selectedAppointment) return;
+
+    try {
+      const token = getToken();
+      const [hour, minute] = formData.startTime.split(':');
+      
+      const startTime = new Date(selectedDate);
+      startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
+      const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
+
+      const updateData = {
+        customer: formData.customer,
+        masseur: formData.masseur,
+        massageType: formData.massageType,
+        duration: parseInt(formData.duration),
+        price: formData.price,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        notes: formData.notes
+      };
+
+      const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}/${token}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        await fetchDayAppointments();
+        setShowEditModal(false);
+        resetForm();
+        alert('Randevu uğurla yeniləndi!');
+      } else {
+        const error = await response.json();
+        alert('Xəta: ' + (error.message || 'Randevu yenilənmədi'));
+      }
+    } catch (error) {
+      console.error('Update appointment error:', error);
+      alert('Randevu yenilərkən xəta baş verdi');
+    }
+  };
+
+  const deleteAppointment = async () => {
+    if (!selectedAppointment) return;
+    
+    if (!confirm('Randevunu silmək istədiyinizdən əminsiniz?')) return;
+
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}/${token}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        await fetchDayAppointments();
+        setShowAppointmentModal(false);
+        setSelectedAppointment(null);
+        alert('Randevu uğurla silindi!');
+      } else {
+        const error = await response.json();
+        alert('Xəta: ' + (error.message || 'Randevu silinmədi'));
+      }
+    } catch (error) {
+      console.error('Delete appointment error:', error);
+      alert('Randevu silinərkən xəta baş verdi');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       customer: '',
@@ -521,20 +598,23 @@ export default function Cedvel() {
       price: 0,
       startTime: '',
       notes: '',
-      giftCard: null
+      giftCard: null,
+      advancePayment: { amount: 0, paymentMethod: '' }
     });
     setSearchPhone('');
     setFoundCustomers([]);
     setSelectedCustomer(null);
     setShowCustomerDropdown(false);
     setShowAddForm(false);
+    setShowEditModal(false);
     setSelectedSlot(null);
     setGiftCardNumber('');
     setGiftCardError('');
-    setShowGiftCardValidation(false);
+    setShowAdvancePayment(false);
+    setAdvanceAmount('');
+    setAdvanceMethod('');
   };
 
-  // Check if time slot is occupied for specific masseur
   const isTimeSlotOccupied = (masseurId, time) => {
     const [hour, minute] = time.split(':');
     const slotDateTime = new Date(selectedDate);
@@ -548,27 +628,23 @@ export default function Cedvel() {
     });
   };
 
-  // Open add form
   const openAddForm = (masseurId, time) => {
     setSelectedSlot({ masseurId, time });
     setFormData(prev => ({ ...prev, startTime: time, masseur: masseurId }));
     setShowAddForm(true);
   };
 
-  // Open appointment modal
   const openAppointmentModal = (appointment) => {
     setSelectedAppointment(appointment);
     setShowAppointmentModal(true);
   };
 
-  // Get available durations for selected massage type
   const getAvailableDurations = () => {
     if (!formData.massageType) return [];
     const massageType = massageTypes.find(mt => mt._id === formData.massageType);
     return massageType ? massageType.durations : [];
   };
 
-  // Get payment method icon and text
   const getPaymentMethodDisplay = (method) => {
     switch (method) {
       case 'cash':
@@ -582,13 +658,10 @@ export default function Cedvel() {
     }
   };
 
-  // Get status display
   const getStatusDisplay = (status) => {
     switch (status) {
       case 'completed':
         return { icon: <CheckCircle size={14} />, text: 'Tamamlandı', color: '#059669' };
-      case 'in-progress':
-        return { icon: <Clock size={14} />, text: 'Davam edir', color: '#f59e0b' };
       case 'scheduled':
         return { icon: <Calendar size={14} />, text: 'Təyin edilib', color: '#3b82f6' };
       case 'cancelled':
@@ -598,577 +671,72 @@ export default function Cedvel() {
     }
   };
 
-  // Styles
-  const styles = {
-    container: {
-      maxWidth: '100%',
-      margin: '0 auto',
-      padding: '20px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#f8fafc',
-      minHeight: '100vh'
-    },
-    loadingContainer: {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: '#f8fafc'
-    },
-    loading: {
-      fontSize: '18px',
-      color: '#64748b'
-    },
-    errorContainer: {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: '#f8fafc'
-    },
-    error: {
-      fontSize: '18px',
-      color: '#ef4444'
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '20px',
-      padding: '20px',
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    },
-    branchInfo: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px'
-    },
-    branchName: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#1e293b',
-      margin: 0
-    },
-    dateNavigation: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px'
-    },
-    dateBtn: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '12px 16px',
-      border: '1px solid #e2e8f0',
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      cursor: 'pointer',
-      fontSize: '14px',
-      fontWeight: '500',
-      color: '#475569',
-      transition: 'all 0.2s'
-    },
-    dateTitle: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '12px 20px',
-      backgroundColor: '#667eea',
-      borderRadius: '8px',
-      color: 'white'
-    },
-    dateText: {
-      fontSize: '18px',
-      fontWeight: '600',
-      margin: 0
-    },
-    masseursInfo: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      marginBottom: '20px',
-      padding: '12px 20px',
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      fontSize: '14px',
-      color: '#64748b'
-    },
-    scheduleContainer: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      overflow: 'hidden'
-    },
-    scheduleGrid: {
-      display: 'grid',
-      gap: '1px',
-      backgroundColor: '#e2e8f0'
-    },
-    timeColumn: {
-      padding: '16px',
-      backgroundColor: '#f1f5f9',
-      fontWeight: '600',
-      color: '#475569',
-      textAlign: 'center',
-      fontSize: '14px'
-    },
-    masseurHeader: {
-      padding: '16px',
-      backgroundColor: '#667eea',
-      color: 'white',
-      textAlign: 'center'
-    },
-    masseurName: {
-      fontSize: '16px',
-      fontWeight: '600',
-      marginBottom: '4px'
-    },
-    masseurSpecialty: {
-      fontSize: '12px',
-      opacity: 0.9
-    },
-    scheduleRow: {
-      display: 'contents'
-    },
-    timeCell: {
-      padding: '12px',
-      backgroundColor: '#f8fafc',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    timeLabel: {
-      fontSize: '13px',
-      fontWeight: '500',
-      color: '#64748b'
-    },
-    timeSlot: {
-      padding: '8px',
-      backgroundColor: '#ffffff',
-      border: '1px solid #e5e7eb',
-      cursor: 'pointer',
-      minHeight: '60px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.2s'
-    },
-    emptySlot: {
-      opacity: 0.5,
-      transition: 'opacity 0.2s'
-    },
-    appointmentCard: {
-      width: '100%',
-      fontSize: '11px'
-    },
-    appointmentHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '4px'
-    },
-    appointmentTime: {
-      fontWeight: '600',
-      color: '#0284c7',
-      fontSize: '10px'
-    },
-    statusBadge: {
-      display: 'flex',
-      alignItems: 'center'
-    },
-    appointmentInfo: {
-      textAlign: 'left'
-    },
-    customerName: {
-      display: 'block',
-      fontWeight: '600',
-      color: '#1e293b',
-      marginBottom: '2px'
-    },
-    massageType: {
-      display: 'block',
-      color: '#64748b',
-      fontSize: '10px',
-      marginBottom: '4px'
-    },
-    appointmentFooter: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    price: {
-      fontWeight: '600',
-      color: '#059669',
-      fontSize: '11px'
-    },
-    paymentBadge: {
-      display: 'flex',
-      alignItems: 'center'
-    },
-    modalOverlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    },
-    modal: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '0',
-      maxWidth: '600px',
-      width: '90%',
-      maxHeight: '90vh',
-      overflow: 'hidden'
-    },
-    modalHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '20px',
-      borderBottom: '1px solid #e2e8f0'
-    },
-    modalTitle: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#1e293b',
-      margin: 0
-    },
-    closeBtn: {
-      padding: '8px',
-      border: 'none',
-      backgroundColor: 'transparent',
-      cursor: 'pointer',
-      borderRadius: '6px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    modalBody: {
-      padding: '20px',
-      maxHeight: '70vh',
-      overflowY: 'auto'
-    },
-    formGroup: {
-      marginBottom: '20px'
-    },
-    label: {
-      display: 'flex',
-      alignItems: 'center',
-      fontSize: '14px',
-      fontWeight: '500',
-      color: '#374151',
-      marginBottom: '8px'
-    },
-    input: {
-      width: '100%',
-      padding: '12px',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '14px',
-      boxSizing: 'border-box'
-    },
-    select: {
-      width: '100%',
-      padding: '12px',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '14px',
-      backgroundColor: 'white',
-      boxSizing: 'border-box'
-    },
-    textarea: {
-      width: '100%',
-      padding: '12px',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '14px',
-      minHeight: '80px',
-      resize: 'vertical',
-      boxSizing: 'border-box'
-    },
-    giftCardContainer: {
-      position: 'relative'
-    },
-    validatingIndicator: {
-      fontSize: '12px',
-      color: '#f59e0b',
-      marginTop: '4px'
-    },
-    errorMessage: {
-      fontSize: '12px',
-      color: '#ef4444',
-      marginTop: '4px'
-    },
-    validGiftCard: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '8px',
-      backgroundColor: '#ecfdf5',
-      border: '1px solid #10b981',
-      borderRadius: '6px',
-      marginTop: '8px'
-    },
-    giftCardInfo: {
-      fontSize: '12px',
-      fontWeight: '500',
-      color: '#059669'
-    },
-    giftCardBuyer: {
-      fontSize: '11px',
-      color: '#6b7280'
-    },
-    customerSearchContainer: {
-      position: 'relative'
-    },
-    customerDropdown: {
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      backgroundColor: 'white',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-      zIndex: 10,
-      maxHeight: '200px',
-      overflowY: 'auto'
-    },
-    customerOption: {
-      padding: '12px',
-      cursor: 'pointer',
-      borderBottom: '1px solid #f3f4f6',
-      transition: 'background-color 0.2s'
-    },
-    customerOptionHover: {
-      backgroundColor: '#f8fafc'
-    },
-    customerName: {
-      fontWeight: '500',
-      color: '#1e293b'
-    },
-    customerPhone: {
-      fontSize: '12px',
-      color: '#64748b'
-    },
-    selectedCustomerDisplay: {
-      padding: '12px',
-      backgroundColor: '#ecfdf5',
-      border: '1px solid #10b981',
-      borderRadius: '8px',
-      marginBottom: '8px'
-    },
-    selectedCustomerName: {
-      fontWeight: '500',
-      color: '#059669'
-    },
-    selectedCustomerPhone: {
-      fontSize: '12px',
-      color: '#6b7280'
-    },
-    buttonGroup: {
-      display: 'flex',
-      gap: '12px',
-      marginTop: '20px'
-    },
-    primaryBtn: {
-      flex: 1,
-      padding: '12px 20px',
-      backgroundColor: '#667eea',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s'
-    },
-    secondaryBtn: {
-      flex: 1,
-      padding: '12px 20px',
-      backgroundColor: 'transparent',
-      color: '#64748b',
-      border: '1px solid #e2e8f0',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'all 0.2s'
-    },
-    addCustomerBtn: {
-      width: '100%',
-      padding: '10px',
-      backgroundColor: '#f8fafc',
-      border: '1px solid #e2e8f0',
-      borderRadius: '6px',
-      fontSize: '12px',
-      color: '#475569',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '6px',
-      transition: 'all 0.2s'
-    },
-    paymentButtons: {
-      display: 'flex',
-      gap: '12px',
-      marginTop: '20px'
-    },
-    paymentBtn: {
-      flex: 1,
-      padding: '16px',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      transition: 'all 0.2s'
-    },
-    cashBtn: {
-      backgroundColor: '#059669',
-      color: 'white'
-    },
-    cardBtn: {
-      backgroundColor: '#3b82f6',
-      color: 'white'
-    },
-    terminalBtn: {
-      backgroundColor: '#8b5cf6',
-      color: 'white'
-    },
-    appointmentDetailModal: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '0',
-      maxWidth: '500px',
-      width: '90%'
-    },
-    appointmentDetail: {
-      padding: '20px'
-    },
-    detailRow: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '12px 0',
-      borderBottom: '1px solid #f3f4f6'
-    },
-    detailLabel: {
-      fontSize: '14px',
-      color: '#64748b',
-      fontWeight: '500'
-    },
-    detailValue: {
-      fontSize: '14px',
-      color: '#1e293b',
-      fontWeight: '500',
-      textAlign: 'right'
-    },
-    statusDisplay: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px'
-    }
-  };
-
-  // Server-side render zamanı loading göstər
-  if (!mounted) {
+  if (!mounted || loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loading}>Yüklənir...</div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loading}>Yüklənir...</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Yüklənir...</div>
       </div>
     );
   }
 
   if (!userBranch) {
     return (
-      <div style={styles.errorContainer}>
-        <div style={styles.error}>Filial məlumatı tapılmadı</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ color: '#ef4444' }}>Filial məlumatı tapılmadı</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', padding: '20px', fontFamily: 'system-ui', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.branchInfo}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '20px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Building2 size={24} color="#667eea" />
-          <h2 style={styles.branchName}>{userBranch.name} - Günlük Randevu Cədvəli</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userBranch.name} - Günlük Cədvəl</h2>
         </div>
 
-        <div style={styles.dateNavigation}>
-          <button onClick={() => changeDate(-1)} style={styles.dateBtn}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button onClick={() => changeDate(-1)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', border: '1px solid #e2e8f0', backgroundColor: 'white', borderRadius: '8px', cursor: 'pointer' }}>
             <ChevronLeft size={20} />
-            Əvvəlki Gün
+            Əvvəlki
           </button>
           
-          <div style={styles.dateTitle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', backgroundColor: '#667eea', borderRadius: '8px', color: 'white' }}>
             <Calendar size={24} />
-            <h2 style={styles.dateText}>
-              {formatDateDisplay(selectedDate)}
-            </h2>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>{formatDateDisplay(selectedDate)}</h2>
           </div>
           
-          <button onClick={() => changeDate(1)} style={styles.dateBtn}>
-            Növbəti Gün
+          <button onClick={() => changeDate(1)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', border: '1px solid #e2e8f0', backgroundColor: 'white', borderRadius: '8px', cursor: 'pointer' }}>
+            Növbəti
             <ChevronRight size={20} />
           </button>
         </div>
       </div>
 
       {/* Masseurs info */}
-      <div style={styles.masseursInfo}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', padding: '12px 20px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <Users size={20} />
         <span>Aktiv Masajistlər: {masseurs.length} nəfər</span>
       </div>
 
-      {/* Schedule Table */}
-      <div style={styles.scheduleContainer}>
-        <div style={styles.scheduleGrid} 
-             style={{
-               ...styles.scheduleGrid,
-               gridTemplateColumns: `120px repeat(${masseurs.length}, 1fr)`
-             }}>
+      {/* Schedule Grid */}
+      <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `120px repeat(${masseurs.length}, 1fr)`, gap: '1px', backgroundColor: '#e2e8f0' }}>
           
-          {/* Header - time column */}
-          <div style={styles.timeColumn}>Saat</div>
+          <div style={{ padding: '16px', backgroundColor: '#f1f5f9', fontWeight: '600', color: '#475569', textAlign: 'center' }}>Saat</div>
           
-          {/* Header - masseurs */}
           {masseurs.map((masseur) => (
-            <div key={masseur._id} style={styles.masseurHeader}>
-              <div style={styles.masseurName}>{masseur.name}</div>
-              <div style={styles.masseurSpecialty}>Masajist</div>
+            <div key={masseur._id} style={{ padding: '16px', backgroundColor: '#667eea', color: 'white', textAlign: 'center' }}>
+              <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{masseur.name}</div>
+              <div style={{ fontSize: '12px', opacity: 0.9 }}>Masajist</div>
             </div>
           ))}
 
-          {/* Time slots */}
           {hours.map((timeSlot) => (
-            <div key={timeSlot} style={styles.scheduleRow}>
-              <div style={styles.timeCell}>
-                <span style={styles.timeLabel}>{timeSlot}</span>
+            <div key={timeSlot} style={{ display: 'contents' }}>
+              <div style={{ padding: '12px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: '500', color: '#64748b' }}>{timeSlot}</span>
               </div>
 
               {masseurs.map((masseur) => {
@@ -1178,44 +746,49 @@ export default function Cedvel() {
                   <div 
                     key={`${masseur._id}-${timeSlot}`}
                     style={{
-                      ...styles.timeSlot,
+                      padding: '8px',
                       backgroundColor: appointment ? '#e0f2fe' : '#ffffff',
-                      borderColor: appointment ? '#0284c7' : '#e5e7eb'
+                      border: '1px solid',
+                      borderColor: appointment ? '#0284c7' : '#e5e7eb',
+                      cursor: 'pointer',
+                      minHeight: '60px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
                     }}
                     onClick={() => appointment ? openAppointmentModal(appointment) : openAddForm(masseur._id, timeSlot)}
                   >
                     {appointment ? (
-                      <div style={styles.appointmentCard}>
-                        <div style={styles.appointmentHeader}>
-                          <span style={styles.appointmentTime}>
+                      <div style={{ width: '100%', fontSize: '11px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: '600', color: '#0284c7', fontSize: '10px' }}>
                             {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
                             {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {(() => {
                               const status = getStatusDisplay(appointment.status);
-                              return (
-                                <span style={{ ...styles.statusBadge, color: status.color }}>
-                                  {status.icon}
-                                </span>
-                              );
+                              return <span style={{ color: status.color }}>{status.icon}</span>;
                             })()}
                           </div>
                         </div>
-                        <div style={styles.appointmentInfo}>
-                          <span style={styles.customerName}>{appointment.customer?.name}</span>
-                          <span style={styles.massageType}>{appointment.massageType?.name}</span>
-                          <div style={styles.appointmentFooter}>
-                            <span style={styles.price}>{appointment.price} AZN</span>
+                        <div style={{ textAlign: 'left' }}>
+                          <span style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>{appointment.customer?.name}</span>
+                          <span style={{ display: 'block', color: '#64748b', fontSize: '10px', marginBottom: '4px' }}>{appointment.massageType?.name}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '600', color: '#059669', fontSize: '11px' }}>
+                              {appointment.advancePayment?.amount > 0 ? (
+                                `${appointment.advancePayment.amount} AZN (BEH)`
+                              ) : (
+                                `${appointment.price} AZN`
+                              )}
+                            </span>
                             {appointment.paymentMethod && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 {(() => {
                                   const payment = getPaymentMethodDisplay(appointment.paymentMethod);
-                                  return (
-                                    <span style={{ ...styles.paymentBadge, color: payment.color }}>
-                                      {payment.icon}
-                                    </span>
-                                  );
+                                  return <span style={{ color: payment.color }}>{payment.icon}</span>;
                                 })()}
                               </div>
                             )}
@@ -1223,7 +796,7 @@ export default function Cedvel() {
                         </div>
                       </div>
                     ) : (
-                      <div style={styles.emptySlot}>
+                      <div style={{ opacity: 0.5 }}>
                         <Plus size={16} color="#9ca3af" />
                       </div>
                     )}
@@ -1237,62 +810,56 @@ export default function Cedvel() {
 
       {/* Add Appointment Modal */}
       {showAddForm && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Yeni Randevu</h3>
-              <button onClick={resetForm} style={styles.closeBtn}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Yeni Randevu</h3>
+              <button onClick={resetForm} style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', borderRadius: '6px' }}>
                 <X size={20} />
               </button>
             </div>
             
-            <div style={styles.modalBody}>
+            <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
               {/* Gift Card Section */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
                   <Gift size={16} style={{ marginRight: '6px' }} />
                   Hədiyyə Kartı (İstəyə bağlı):
                 </label>
-                <div style={styles.giftCardContainer}>
+                <div>
                   <input
                     type="text"
                     value={giftCardNumber}
                     onChange={(e) => {
                       const value = e.target.value;
                       setGiftCardNumber(value);
-                      
-                      // Auto-validate after typing stops (debounce)
                       clearTimeout(window.giftCardTimeout);
-                      window.giftCardTimeout = setTimeout(() => {
-                        validateGiftCard(value);
-                      }, 500);
+                      window.giftCardTimeout = setTimeout(() => validateGiftCard(value), 500);
                     }}
                     style={{
-                      ...styles.input,
-                      borderColor: formData.giftCard ? '#10b981' : (giftCardError ? '#ef4444' : '#e5e7eb')
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid',
+                      borderColor: formData.giftCard ? '#10b981' : (giftCardError ? '#ef4444' : '#e5e7eb'),
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
                     }}
-                    placeholder="Hədiyyə kartı nömrəsini daxil edin"
+                    placeholder="Hədiyyə kartı nömrəsi"
                   />
                   
-                  {validatingGiftCard && (
-                    <div style={styles.validatingIndicator}>Yoxlanılır...</div>
-                  )}
-                  
-                  {giftCardError && (
-                    <div style={styles.errorMessage}>{giftCardError}</div>
-                  )}
+                  {validatingGiftCard && <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '4px' }}>Yoxlanılır...</div>}
+                  {giftCardError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{giftCardError}</div>}
                   
                   {formData.giftCard && (
-                    <div style={styles.validGiftCard}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#ecfdf5', border: '1px solid #10b981', borderRadius: '6px', marginTop: '8px' }}>
                       <CheckCircle size={16} />
                       <div>
-                        <div style={styles.giftCardInfo}>
-                          Etibarlı hədiyyə kartı: {formData.giftCard.massageType.name} - {formData.giftCard.duration} dəqiqə
+                        <div style={{ fontSize: '12px', fontWeight: '500', color: '#059669' }}>
+                          Etibarlı: {formData.giftCard.massageType.name} - {formData.giftCard.duration} dəqiqə
                         </div>
                         {formData.giftCard.purchasedBy && (
-                          <div style={styles.giftCardBuyer}>
-                            Alıcı: {formData.giftCard.purchasedBy.name}
-                          </div>
+                          <div style={{ fontSize: '11px', color: '#6b7280' }}>Alıcı: {formData.giftCard.purchasedBy.name}</div>
                         )}
                       </div>
                     </div>
@@ -1301,30 +868,30 @@ export default function Cedvel() {
               </div>
 
               {/* Customer Search */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
                   <User size={16} style={{ marginRight: '6px' }} />
                   Müştəri:
                 </label>
                 
                 {selectedCustomer ? (
-                  <div style={styles.selectedCustomerDisplay}>
-                    <div style={styles.selectedCustomerName}>{selectedCustomer.name}</div>
-                    <div style={styles.selectedCustomerPhone}>{selectedCustomer.phone}</div>
+                  <div style={{ padding: '12px', backgroundColor: '#ecfdf5', border: '1px solid #10b981', borderRadius: '8px', marginBottom: '8px' }}>
+                    <div style={{ fontWeight: '500', color: '#059669' }}>{selectedCustomer.name}</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>{selectedCustomer.phone}</div>
                     <button 
                       onClick={() => {
                         setSelectedCustomer(null);
                         setFormData(prev => ({ ...prev, customer: '' }));
                         setSearchPhone('');
                       }}
-                      style={styles.addCustomerBtn}
+                      style={{ width: '100%', marginTop: '8px', padding: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
                     >
-                      <X size={14} />
+                      <X size={14} style={{ display: 'inline', marginRight: '4px' }} />
                       Dəyiş
                     </button>
                   </div>
                 ) : (
-                  <div style={styles.customerSearchContainer}>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type="text"
                       value={searchPhone}
@@ -1333,22 +900,22 @@ export default function Cedvel() {
                         setSearchPhone(value);
                         searchCustomersByPhone(value);
                       }}
-                      style={styles.input}
-                      placeholder="Telefon nömrəsi və ya ad ilə axtarın"
+                      style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                      placeholder="Telefon və ya ad ilə axtar"
                     />
                     
                     {showCustomerDropdown && foundCustomers.length > 0 && (
-                      <div style={styles.customerDropdown}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: '200px', overflowY: 'auto' }}>
                         {foundCustomers.map((customer) => (
                           <div
                             key={customer._id}
-                            style={styles.customerOption}
+                            style={{ padding: '12px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6' }}
                             onClick={() => selectCustomer(customer)}
                             onMouseEnter={(e) => e.target.style.backgroundColor = '#f8fafc'}
                             onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                           >
-                            <div style={styles.customerName}>{customer.name}</div>
-                            <div style={styles.customerPhone}>{customer.phone}</div>
+                            <div style={{ fontWeight: '500', color: '#1e293b' }}>{customer.name}</div>
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>{customer.phone}</div>
                           </div>
                         ))}
                       </div>
@@ -1356,40 +923,38 @@ export default function Cedvel() {
                     
                     <button
                       onClick={() => setShowCustomerForm(true)}
-                      style={styles.addCustomerBtn}
+                      style={{ width: '100%', marginTop: '8px', padding: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
                     >
-                      <Plus size={14} />
-                      Yeni Müştəri Əlavə Et
+                      <Plus size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                      Yeni Müştəri
                     </button>
                   </div>
                 )}
               </div>
 
               {/* Massage Type */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Masaj Növü:</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Masaj Növü:</label>
                 <select
                   value={formData.massageType}
                   onChange={(e) => handleMassageTypeChange(e.target.value)}
-                  style={styles.select}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', boxSizing: 'border-box' }}
                   disabled={formData.giftCard}
                 >
                   <option value="">Masaj növü seçin</option>
                   {massageTypes.map((type) => (
-                    <option key={type._id} value={type._id}>
-                      {type.name}
-                    </option>
+                    <option key={type._id} value={type._id}>{type.name}</option>
                   ))}
                 </select>
               </div>
 
               {/* Duration */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Müddət:</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Müddət:</label>
                 <select
                   value={formData.duration}
                   onChange={(e) => handleDurationChange(e.target.value)}
-                  style={styles.select}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', boxSizing: 'border-box' }}
                   disabled={formData.giftCard}
                 >
                   <option value="">Müddət seçin</option>
@@ -1401,36 +966,243 @@ export default function Cedvel() {
                 </select>
               </div>
 
+              {/* Advance Payment Toggle */}
+              {!formData.giftCard && formData.price > 0 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showAdvancePayment}
+                      onChange={(e) => setShowAdvancePayment(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      <DollarSign size={16} style={{ display: 'inline', marginRight: '4px' }} />
+                      BEH (Qabaqcadan ödəniş)
+                    </span>
+                  </label>
+
+                  {showAdvancePayment && (
+                    <div style={{ marginTop: '12px', padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>BEH məbləği:</label>
+                        <input
+                          type="number"
+                          value={advanceAmount}
+                          onChange={(e) => setAdvanceAmount(e.target.value)}
+                          max={formData.price}
+                          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                          placeholder={`Maksimum: ${formData.price} AZN`}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>Ödəniş üsulu:</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => setAdvanceMethod('cash')}
+                            style={{
+                              flex: 1,
+                              padding: '10px',
+                              border: '2px solid',
+                              borderColor: advanceMethod === 'cash' ? '#059669' : '#e5e7eb',
+                              backgroundColor: advanceMethod === 'cash' ? '#ecfdf5' : 'white',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500',
+                              color: advanceMethod === 'cash' ? '#059669' : '#64748b'
+                            }}
+                          >
+                            <Banknote size={16} style={{ display: 'inline', marginRight: '4px' }} />
+                            Nağd
+                          </button>
+                          <button
+                            onClick={() => setAdvanceMethod('card')}
+                            style={{
+                              flex: 1,
+                              padding: '10px',
+                              border: '2px solid',
+                              borderColor: advanceMethod === 'card' ? '#3b82f6' : '#e5e7eb',
+                              backgroundColor: advanceMethod === 'card' ? '#eff6ff' : 'white',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500',
+                              color: advanceMethod === 'card' ? '#3b82f6' : '#64748b'
+                            }}
+                          >
+                            <CreditCard size={16} style={{ display: 'inline', marginRight: '4px' }} />
+                            Kart
+                          </button>
+                          <button
+                            onClick={() => setAdvanceMethod('terminal')}
+                            style={{
+                              flex: 1,
+                              padding: '10px',
+                              border: '2px solid',
+                              borderColor: advanceMethod === 'terminal' ? '#8b5cf6' : '#e5e7eb',
+                              backgroundColor: advanceMethod === 'terminal' ? '#f5f3ff' : 'white',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500',
+                              color: advanceMethod === 'terminal' ? '#8b5cf6' : '#64748b'
+                            }}
+                          >
+                            <Monitor size={16} style={{ display: 'inline', marginRight: '4px' }} />
+                            Terminal
+                          </button>
+                        </div>
+                      </div>
+
+                      {advanceAmount > 0 && (
+                        <div style={{ marginTop: '12px', padding: '10px', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px', fontSize: '12px', color: '#92400e' }}>
+                          Qalan məbləğ: {(formData.price - parseFloat(advanceAmount || 0)).toFixed(2)} AZN
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Price Display */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Qiymət:</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Qiymət:</label>
                 <div style={{
-                  ...styles.input,
+                  padding: '12px',
                   backgroundColor: formData.giftCard ? '#ecfdf5' : '#f8fafc',
                   color: formData.giftCard ? '#059669' : '#1e293b',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb'
                 }}>
                   {formData.giftCard ? 'Hədiyyə kartı (Pulsuz)' : `${formData.price} AZN`}
                 </div>
               </div>
 
               {/* Notes */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Qeydlər:</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Qeydlər:</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  style={styles.textarea}
-                  placeholder="Əlavə qeydlər (istəyə bağlı)"
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="Əlavə qeydlər"
                 />
               </div>
 
               {/* Buttons */}
-              <div style={styles.buttonGroup}>
-                <button onClick={addAppointment} style={styles.primaryBtn}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={addAppointment} style={{ flex: 1, padding: '12px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
                   Randevu Yarat
                 </button>
-                <button onClick={resetForm} style={styles.secondaryBtn}>
+                <button onClick={resetForm} style={{ flex: 1, padding: '12px 20px', backgroundColor: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
+                  Ləğv Et
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Appointment Modal */}
+      {showEditModal && selectedAppointment && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Randevunu Redaktə Et</h3>
+              <button onClick={resetForm} style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Customer Display */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Müştəri:</label>
+                <div style={{ padding: '12px', backgroundColor: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: '500', color: '#1e293b' }}>{selectedCustomer?.name}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>{selectedCustomer?.phone}</div>
+                </div>
+              </div>
+
+              {/* Massage Type */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Masaj Növü:</label>
+                <select
+                  value={formData.massageType}
+                  onChange={(e) => handleMassageTypeChange(e.target.value)}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', boxSizing: 'border-box' }}
+                >
+                  <option value="">Masaj növü seçin</option>
+                  {massageTypes.map((type) => (
+                    <option key={type._id} value={type._id}>{type.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Duration */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Müddət:</label>
+                <select
+                  value={formData.duration}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', boxSizing: 'border-box' }}
+                >
+                  <option value="">Müddət seçin</option>
+                  {getAvailableDurations().map((duration) => (
+                    <option key={duration.minutes} value={duration.minutes}>
+                      {duration.minutes} dəqiqə - {duration.price} AZN
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Start Time */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Başlanğıc vaxtı:</label>
+                <input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Masseur */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Masajist:</label>
+                <select
+                  value={formData.masseur}
+                  onChange={(e) => setFormData(prev => ({ ...prev, masseur: e.target.value }))}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', boxSizing: 'border-box' }}
+                >
+                  <option value="">Masajist seçin</option>
+                  {masseurs.map((masseur) => (
+                    <option key={masseur._id} value={masseur._id}>{masseur.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Qeydlər:</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="Əlavə qeydlər"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={updateAppointment} style={{ flex: 1, padding: '12px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
+                  <Save size={16} style={{ display: 'inline', marginRight: '6px' }} />
+                  Yadda Saxla
+                </button>
+                <button onClick={resetForm} style={{ flex: 1, padding: '12px 20px', backgroundColor: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
                   Ləğv Et
                 </button>
               </div>
@@ -1441,53 +1213,53 @@ export default function Cedvel() {
 
       {/* Customer Form Modal */}
       {showCustomerForm && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Yeni Müştəri</h3>
-              <button onClick={() => setShowCustomerForm(false)} style={styles.closeBtn}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Yeni Müştəri</h3>
+              <button onClick={() => setShowCustomerForm(false)} style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
             
-            <div style={styles.modalBody}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Ad:</label>
+            <div style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '6px' }}>Ad:</label>
                 <input
                   type="text"
                   value={customerFormData.name}
                   onChange={(e) => setCustomerFormData(prev => ({ ...prev, name: e.target.value }))}
-                  style={styles.input}
-                  placeholder="Müştərinin adı"
+                  style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', boxSizing: 'border-box' }}
+                  placeholder="Müştəri adı"
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Telefon:</label>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '6px' }}>Telefon:</label>
                 <input
                   type="tel"
                   value={customerFormData.phone}
                   onChange={(e) => setCustomerFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  style={styles.input}
+                  style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', boxSizing: 'border-box' }}
                   placeholder="+994501234567"
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Qeydlər:</label>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '6px' }}>Qeydlər:</label>
                 <textarea
                   value={customerFormData.notes}
                   onChange={(e) => setCustomerFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  style={styles.textarea}
-                  placeholder="Müştəri haqqında əlavə məlumatlar"
+                  style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="Əlavə qeydlər"
                 />
               </div>
 
-              <div style={styles.buttonGroup}>
-                <button onClick={addCustomer} style={styles.primaryBtn}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={addCustomer} style={{ flex: 1, padding: '12px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '500', cursor: 'pointer' }}>
                   Müştəri Əlavə Et
                 </button>
-                <button onClick={() => setShowCustomerForm(false)} style={styles.secondaryBtn}>
+                <button onClick={() => setShowCustomerForm(false)} style={{ flex: 1, padding: '12px', backgroundColor: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '500', cursor: 'pointer' }}>
                   Ləğv Et
                 </button>
               </div>
@@ -1498,69 +1270,84 @@ export default function Cedvel() {
 
       {/* Appointment Detail Modal */}
       {showAppointmentModal && selectedAppointment && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.appointmentDetailModal}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Randevu Təfərrüatları</h3>
-              <button onClick={() => setShowAppointmentModal(false)} style={styles.closeBtn}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Randevu Təfərrüatları</h3>
+              <button onClick={() => setShowAppointmentModal(false)} style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
             
-            <div style={styles.appointmentDetail}>
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Müştəri:</span>
-                <span style={styles.detailValue}>{selectedAppointment.customer?.name}</span>
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Müştəri:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.customer?.name}</span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Telefon:</span>
-                <span style={styles.detailValue}>{selectedAppointment.customer?.phone}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Telefon:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.customer?.phone}</span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Masajist:</span>
-                <span style={styles.detailValue}>{selectedAppointment.masseur?.name}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Masajist:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.masseur?.name}</span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Masaj Növü:</span>
-                <span style={styles.detailValue}>{selectedAppointment.massageType?.name}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Masaj Növü:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.massageType?.name}</span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Başlanğıc:</span>
-                <span style={styles.detailValue}>
-                  {new Date(selectedAppointment.startTime).toLocaleTimeString('az-AZ', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Başlanğıc:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>
+                  {new Date(selectedAppointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Bitmə:</span>
-                <span style={styles.detailValue}>
-                  {new Date(selectedAppointment.endTime).toLocaleTimeString('az-AZ', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Bitmə:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>
+                  {new Date(selectedAppointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Müddət:</span>
-                <span style={styles.detailValue}>{selectedAppointment.duration} dəqiqə</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Müddət:</span>
+                <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.duration} dəqiqə</span>
               </div>
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Qiymət:</span>
-                <span style={styles.detailValue}>{selectedAppointment.price} AZN</span>
-              </div>
+              {selectedAppointment.advancePayment?.amount > 0 ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>BEH (Ödənilib):</span>
+                    <span style={{ fontSize: '14px', color: '#059669', fontWeight: '600', textAlign: 'right' }}>
+                      {selectedAppointment.advancePayment.amount} AZN ({getPaymentMethodDisplay(selectedAppointment.advancePayment.paymentMethod).text})
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Qalan məbləğ:</span>
+                    <span style={{ fontSize: '14px', color: '#f59e0b', fontWeight: '600', textAlign: 'right' }}>
+                      {selectedAppointment.price - selectedAppointment.advancePayment.amount} AZN
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Ümumi qiymət:</span>
+                    <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>{selectedAppointment.price} AZN</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Qiymət:</span>
+                  <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.price} AZN</span>
+                </div>
+              )}
               
-              <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Status:</span>
-                <div style={styles.statusDisplay}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Status:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {(() => {
                     const status = getStatusDisplay(selectedAppointment.status);
                     return (
@@ -1574,39 +1361,77 @@ export default function Cedvel() {
               </div>
 
               {selectedAppointment.notes && (
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Qeydlər:</span>
-                  <span style={styles.detailValue}>{selectedAppointment.notes}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Qeydlər:</span>
+                  <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500', textAlign: 'right' }}>{selectedAppointment.notes}</span>
                 </div>
               )}
 
-              {/* Payment buttons for scheduled appointments */}
+              {/* Action buttons */}
               {selectedAppointment.status === 'scheduled' && (
-                <div style={styles.paymentButtons}>
-                  <button 
-                    onClick={() => completeAppointment('cash')}
-                    style={{ ...styles.paymentBtn, ...styles.cashBtn }}
+                <>
+                  {/* Edit button */}
+                  <button
+                    onClick={() => {
+                      setShowAppointmentModal(false);
+                      openEditModal(selectedAppointment);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      marginTop: '16px',
+                      backgroundColor: '#667eea',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
                   >
-                    <Banknote size={16} />
-                    Nağd Ödə
+                    <Edit size={16} />
+                    Redaktə Et
                   </button>
-                  
-                  <button 
-                    onClick={() => completeAppointment('card')}
-                    style={{ ...styles.paymentBtn, ...styles.cardBtn }}
-                  >
-                    <CreditCard size={16} />
-                    Kart
-                  </button>
-                  
-                  <button 
-                    onClick={() => completeAppointment('terminal')}
-                    style={{ ...styles.paymentBtn, ...styles.terminalBtn }}
-                  >
-                    <Monitor size={16} />
-                    Terminal
-                  </button>
-                </div>
+
+                  {/* Payment buttons */}
+                  <div style={{ marginTop: '16px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '12px', textAlign: 'center' }}>
+                      {selectedAppointment.advancePayment?.amount > 0 ? 'Qalan məbləği ödə:' : 'Ödəniş et:'}
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button 
+                        onClick={() => completeAppointment('cash')}
+                        style={{ flex: 1, padding: '16px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      >
+                        <Banknote size={16} />
+                        Nağd
+                      </button>
+                      
+                      <button 
+                        onClick={() => completeAppointment('card')}
+                        style={{ flex: 1, padding: '16px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      >
+                        <CreditCard size={16} />
+                        Kart
+                      </button>
+                      
+                      <button 
+                        onClick={() => completeAppointment('terminal')}
+                        style={{ flex: 1, padding: '16px', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      >
+                        <Monitor size={16} />
+                        Terminal
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Delete button */}
+                 
+                </>
               )}
             </div>
           </div>

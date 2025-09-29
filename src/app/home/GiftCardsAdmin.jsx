@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, Eye, Trash2, BarChart3, Calendar, CreditCard, Users, TrendingUp } from 'lucide-react';
 import Cookies from 'js-cookie';
 
-
 const styles = {
   container: {
     minHeight: '100vh',
@@ -14,41 +13,44 @@ const styles = {
   mainContainer: {
     maxWidth: '1280px',
     margin: '0 auto',
-    padding: '32px 16px'
+    padding: '20px 16px'
   },
   header: {
-    marginBottom: '32px'
+    marginBottom: '24px'
   },
   headerTop: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: '16px'
+    gap: '12px'
   },
   title: {
-    fontSize: '30px',
+    fontSize: '24px',
     fontWeight: '700',
     color: '#111827',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    marginBottom: '8px'
+    marginBottom: '8px',
+    wordBreak: 'break-word'
   },
   subtitle: {
     color: '#6b7280',
-    fontSize: '16px'
+    fontSize: '14px'
   },
   toggleButton: {
-    padding: '8px 16px',
+    padding: '8px 14px',
     borderRadius: '8px',
     fontWeight: '500',
     transition: 'all 0.2s ease',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
     border: 'none',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '13px',
+    whiteSpace: 'nowrap'
   },
   toggleButtonActive: {
     backgroundColor: '#2563eb',
@@ -60,30 +62,33 @@ const styles = {
     border: '1px solid #d1d5db'
   },
   statsSection: {
-    marginBottom: '32px',
+    marginBottom: '24px',
     backgroundColor: 'white',
     borderRadius: '12px',
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-    padding: '24px'
+    padding: '20px'
   },
   statsTitle: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '600',
     color: '#111827',
     marginBottom: '16px'
   },
   dateFilters: {
     display: 'flex',
-    gap: '16px',
-    marginBottom: '24px'
+    gap: '12px',
+    marginBottom: '20px',
+    flexWrap: 'wrap'
   },
   dateGroup: {
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    flex: 1,
+    minWidth: '150px'
   },
   dateLabel: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '500',
     color: '#374151',
     marginBottom: '4px'
@@ -91,42 +96,45 @@ const styles = {
   dateInput: {
     border: '1px solid #d1d5db',
     borderRadius: '8px',
-    padding: '8px 12px',
-    fontSize: '14px'
+    padding: '8px 10px',
+    fontSize: '13px',
+    width: '100%'
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '24px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '16px'
   },
   statCard: {
     background: 'linear-gradient(to right, #dbeafe, #e0e7ff)',
     borderRadius: '8px',
-    padding: '16px'
+    padding: '14px'
   },
   statCardTitle: {
     fontWeight: '500',
     color: '#111827',
-    marginBottom: '8px'
+    marginBottom: '10px',
+    fontSize: '14px',
+    wordBreak: 'break-word'
   },
   statItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    marginBottom: '8px'
+    gap: '6px',
+    fontSize: '13px',
+    marginBottom: '6px'
   },
   filtersSection: {
     backgroundColor: 'white',
     borderRadius: '12px',
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-    padding: '24px',
-    marginBottom: '24px'
+    padding: '20px',
+    marginBottom: '20px'
   },
   filtersGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '14px'
   },
   formGroup: {
     display: 'flex',
@@ -134,7 +142,7 @@ const styles = {
   },
   label: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '500',
     color: '#374151',
     marginBottom: '4px'
@@ -143,19 +151,19 @@ const styles = {
     position: 'relative'
   },
   searchInput: {
-    paddingLeft: '40px',
-    paddingRight: '16px',
+    paddingLeft: '36px',
+    paddingRight: '12px',
     paddingTop: '8px',
     paddingBottom: '8px',
     width: '100%',
     border: '1px solid #d1d5db',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: '13px',
     boxSizing: 'border-box'
   },
   searchIcon: {
     position: 'absolute',
-    left: '12px',
+    left: '10px',
     top: '50%',
     transform: 'translateY(-50%)',
     color: '#9ca3af'
@@ -164,13 +172,13 @@ const styles = {
     width: '100%',
     border: '1px solid #d1d5db',
     borderRadius: '8px',
-    padding: '8px 12px',
-    fontSize: '14px',
+    padding: '8px 10px',
+    fontSize: '13px',
     backgroundColor: 'white'
   },
   clearButton: {
     width: '100%',
-    padding: '8px 16px',
+    padding: '8px 14px',
     color: '#6b7280',
     backgroundColor: '#f3f4f6',
     borderRadius: '8px',
@@ -180,8 +188,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
-    fontSize: '14px'
+    gap: '6px',
+    fontSize: '13px'
   },
   tableSection: {
     backgroundColor: 'white',
@@ -194,16 +202,17 @@ const styles = {
   },
   table: {
     width: '100%',
-    borderCollapse: 'collapse'
+    borderCollapse: 'collapse',
+    minWidth: '900px'
   },
   tableHeader: {
     backgroundColor: '#f9fafb',
     borderBottom: '1px solid #e5e7eb'
   },
   tableHeaderCell: {
-    padding: '12px 24px',
+    padding: '12px 16px',
     textAlign: 'left',
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: '500',
     color: '#6b7280',
     textTransform: 'uppercase',
@@ -215,46 +224,54 @@ const styles = {
     transition: 'background-color 0.2s ease'
   },
   tableCell: {
-    padding: '16px 24px'
+    padding: '14px 16px',
+    fontSize: '13px'
   },
   cardNumber: {
     fontWeight: '500',
-    color: '#111827'
+    color: '#111827',
+    fontSize: '13px'
   },
   cardDate: {
-    fontSize: '14px',
-    color: '#6b7280'
+    fontSize: '12px',
+    color: '#6b7280',
+    marginTop: '2px'
   },
   cardNotes: {
-    fontSize: '12px',
+    fontSize: '11px',
     color: '#9ca3af',
     marginTop: '4px'
   },
   massageType: {
     fontWeight: '500',
-    color: '#111827'
+    color: '#111827',
+    fontSize: '13px'
   },
   massageDuration: {
-    fontSize: '14px',
-    color: '#6b7280'
+    fontSize: '12px',
+    color: '#6b7280',
+    marginTop: '2px'
   },
   customerName: {
     fontWeight: '500',
-    color: '#111827'
+    color: '#111827',
+    fontSize: '13px'
   },
   customerPhone: {
-    fontSize: '14px',
-    color: '#6b7280'
+    fontSize: '12px',
+    color: '#6b7280',
+    marginTop: '2px'
   },
   branchName: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#111827'
   },
   statusBadge: {
     padding: '4px 8px',
-    fontSize: '12px',
+    fontSize: '11px',
     borderRadius: '9999px',
-    fontWeight: '500'
+    fontWeight: '500',
+    whiteSpace: 'nowrap'
   },
   statusBadgeActive: {
     backgroundColor: '#dcfce7',
@@ -265,13 +282,14 @@ const styles = {
     color: '#991b1b'
   },
   usedDate: {
-    fontSize: '12px',
+    fontSize: '11px',
     color: '#6b7280',
     marginTop: '4px'
   },
   price: {
     fontWeight: '500',
-    color: '#111827'
+    color: '#111827',
+    fontSize: '13px'
   },
   actionButton: {
     padding: '4px',
@@ -283,25 +301,26 @@ const styles = {
     transition: 'background-color 0.2s ease'
   },
   emptyState: {
-    padding: '48px 24px',
+    padding: '40px 20px',
     textAlign: 'center',
-    color: '#6b7280'
+    color: '#6b7280',
+    fontSize: '14px'
   },
   summarySection: {
-    marginTop: '24px',
+    marginTop: '20px',
     backgroundColor: 'white',
     borderRadius: '12px',
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-    padding: '24px'
+    padding: '20px'
   },
   summaryGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gap: '14px'
   },
   summaryCard: {
     textAlign: 'center',
-    padding: '16px',
+    padding: '14px',
     borderRadius: '8px'
   },
   summaryCardBlue: {
@@ -314,7 +333,7 @@ const styles = {
     backgroundColor: '#fee2e2'
   },
   summaryNumber: {
-    fontSize: '24px',
+    fontSize: '22px',
     fontWeight: '700',
     marginBottom: '4px'
   },
@@ -328,7 +347,7 @@ const styles = {
     color: '#dc2626'
   },
   summaryLabel: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#6b7280'
   },
   loading: {
@@ -342,8 +361,8 @@ const styles = {
     textAlign: 'center'
   },
   spinner: {
-    width: '48px',
-    height: '48px',
+    width: '40px',
+    height: '40px',
     border: '2px solid #e5e7eb',
     borderTopColor: '#2563eb',
     borderRadius: '50%',
@@ -351,8 +370,9 @@ const styles = {
     margin: '0 auto'
   },
   loadingText: {
-    marginTop: '16px',
-    color: '#6b7280'
+    marginTop: '12px',
+    color: '#6b7280',
+    fontSize: '14px'
   }
 };
 
@@ -370,11 +390,10 @@ const AdminGiftCards = () => {
     endDate: ''
   });
 
-     const getToken = () => {
-       return Cookies.get('authToken');
-     };
+  const getToken = () => {
+    return Cookies.get('authToken');
+  };
 
-  // Fetch all gift cards
   const fetchGiftCards = async () => {
     try {
       const token = getToken();
@@ -399,7 +418,6 @@ const AdminGiftCards = () => {
     }
   };
 
-  // Fetch branches
   const fetchBranches = async () => {
     try {
       const token = getToken();
@@ -416,7 +434,6 @@ const AdminGiftCards = () => {
     }
   };
 
-  // Fetch statistics
   const fetchStats = async () => {
     try {
       const token = getToken();
@@ -439,7 +456,6 @@ const AdminGiftCards = () => {
     }
   };
 
-  // Delete gift card
   const deleteGiftCard = async (cardId) => {
     if (!confirm('Bu hədiyyə kartını silmək istədiyinizə əminsiniz?')) {
       return;
@@ -533,12 +549,11 @@ const AdminGiftCards = () => {
       `}</style>
       
       <div style={styles.mainContainer}>
-        {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerTop}>
             <div>
               <h1 style={styles.title}>
-                <CreditCard size={32} color="#2563eb" />
+                <CreditCard size={28} color="#2563eb" />
                 Hədiyyə Kartları İdarəsi
               </h1>
               <p style={styles.subtitle}>Bütün filialların hədiyyə kartlarını idarə edin</p>
@@ -557,12 +572,10 @@ const AdminGiftCards = () => {
           </div>
         </div>
 
-        {/* Statistics Section */}
         {showStats && (
           <div style={styles.statsSection}>
             <h2 style={styles.statsTitle}>Statistikalar</h2>
             
-            {/* Date Range Filter */}
             <div style={styles.dateFilters}>
               <div style={styles.dateGroup}>
                 <label style={styles.dateLabel}>
@@ -594,7 +607,6 @@ const AdminGiftCards = () => {
               </div>
             </div>
 
-            {/* Stats Cards */}
             {stats && (
               <div style={styles.statsGrid}>
                 {stats.map((branchStat, index) => (
@@ -613,7 +625,7 @@ const AdminGiftCards = () => {
                       </div>
                       <div style={styles.statItem}>
                         <Eye size={16} color="#dc2626" />
-                        <span>İstifadə edilib: {branchStat.usedCards}</span>
+                        <span>İstifadə: {branchStat.usedCards}</span>
                       </div>
                       <div style={styles.statItem}>
                         <TrendingUp size={16} color="#7c3aed" />
@@ -627,10 +639,8 @@ const AdminGiftCards = () => {
           </div>
         )}
 
-        {/* Filters */}
         <div style={styles.filtersSection}>
           <div style={styles.filtersGrid}>
-            {/* Search */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
                 Axtarış
@@ -639,7 +649,7 @@ const AdminGiftCards = () => {
                 <Search size={16} style={styles.searchIcon} />
                 <input
                   type="text"
-                  placeholder="Kart nömrəsi və ya müştəri adı..."
+                  placeholder="Kart nömrəsi və ya müştəri..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={styles.searchInput}
@@ -647,7 +657,6 @@ const AdminGiftCards = () => {
               </div>
             </div>
 
-            {/* Branch Filter */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
                 Filial
@@ -664,7 +673,6 @@ const AdminGiftCards = () => {
               </select>
             </div>
 
-            {/* Status Filter */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
                 Status
@@ -680,7 +688,6 @@ const AdminGiftCards = () => {
               </select>
             </div>
 
-            {/* Clear Filters */}
             <div style={styles.formGroup}>
               <label style={styles.label}>&nbsp;</label>
               <button
@@ -693,39 +700,24 @@ const AdminGiftCards = () => {
                 className="clear-button"
               >
                 <Filter size={16} />
-                Filterləri təmizlə
+                Təmizlə
               </button>
             </div>
           </div>
         </div>
 
-        {/* Gift Cards Table */}
         <div style={styles.tableSection}>
           <div style={styles.tableContainer}>
             <table style={styles.table}>
               <thead style={styles.tableHeader}>
                 <tr>
-                  <th style={styles.tableHeaderCell}>
-                    Kart məlumatları
-                  </th>
-                  <th style={styles.tableHeaderCell}>
-                    Masaj növü
-                  </th>
-                  <th style={styles.tableHeaderCell}>
-                    Alıcı
-                  </th>
-                  <th style={styles.tableHeaderCell}>
-                    Filial
-                  </th>
-                  <th style={styles.tableHeaderCell}>
-                    Status
-                  </th>
-                  <th style={styles.tableHeaderCell}>
-                    Qiymət
-                  </th>
-                  <th style={styles.tableHeaderCell}>
-                    Əməliyyatlar
-                  </th>
+                  <th style={styles.tableHeaderCell}>Kart məlumatları</th>
+                  <th style={styles.tableHeaderCell}>Masaj növü</th>
+                  <th style={styles.tableHeaderCell}>Alıcı</th>
+                  <th style={styles.tableHeaderCell}>Filial</th>
+                  <th style={styles.tableHeaderCell}>Status</th>
+                  <th style={styles.tableHeaderCell}>Qiymət</th>
+                  <th style={styles.tableHeaderCell}>Əməliyyat</th>
                 </tr>
               </thead>
               <tbody>
@@ -811,7 +803,6 @@ const AdminGiftCards = () => {
           </div>
         </div>
 
-        {/* Summary */}
         <div style={styles.summarySection}>
           <div style={styles.summaryGrid}>
             <div style={{...styles.summaryCard, ...styles.summaryCardBlue}}>
