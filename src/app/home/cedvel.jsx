@@ -6,7 +6,8 @@ import {
   Trash2,
   Calendar,
   Users,
-  User
+  User,
+  Ban
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 
@@ -23,6 +24,7 @@ export default function AdminCedvel() {
   const [branches, setBranches] = useState([]);
   const [masseurs, setMasseurs] = useState([]);
   const [receptionists, setReceptionists] = useState([]);
+  const [blockedDates, setBlockedDates] = useState({});
   const [loading, setLoading] = useState(false);
 
   const generateTimeSlots = () => {
@@ -32,7 +34,7 @@ export default function AdminCedvel() {
 
     while (hour < 21 || (hour === 21 && minute === 0)) {
       slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-      minute += 15;
+      minute += 30;
       if (minute >= 60) {
         minute = minute % 60;
         hour += 1;
@@ -85,6 +87,36 @@ export default function AdminCedvel() {
     }
   };
 
+  const fetchBlockedDates = async (masseurId) => {
+    try {
+      const response = await fetch(
+        `${API_BASE}/admin/masseurs/${masseurId}/blocked-dates/${getToken()}`,
+        {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return data.blockedDates || [];
+      }
+    } catch (error) {
+      console.error('Bloklu tarixlər yüklənə bilmədi:', error);
+    }
+    return [];
+  };
+
+  const fetchAllBlockedDates = async () => {
+    const branchMasseurs = getBranchMasseurs();
+    const blocked = {};
+    
+    for (const masseur of branchMasseurs) {
+      const dates = await fetchBlockedDates(masseur._id);
+      blocked[masseur._id] = dates;
+    }
+    
+    setBlockedDates(blocked);
+  };
+
   const fetchAppointments = async () => {
     if (!selectedBranch) return;
     
@@ -109,6 +141,30 @@ export default function AdminCedvel() {
       console.error('Randevular yüklənə bilmədi:', error);
     }
     setLoading(false);
+  };
+
+  const isMasseurBlocked = (masseurId) => {
+    const blocked = blockedDates[masseurId] || [];
+    const checkDate = new Date(selectedDate);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    return blocked.some(block => {
+      const blockDate = new Date(block.date);
+      blockDate.setHours(0, 0, 0, 0);
+      return blockDate.getTime() === checkDate.getTime();
+    });
+  };
+
+  const getBlockInfo = (masseurId) => {
+    const blocked = blockedDates[masseurId] || [];
+    const checkDate = new Date(selectedDate);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    return blocked.find(block => {
+      const blockDate = new Date(block.date);
+      blockDate.setHours(0, 0, 0, 0);
+      return blockDate.getTime() === checkDate.getTime();
+    });
   };
 
   const getReceptionistName = (userId) => {
@@ -138,9 +194,20 @@ export default function AdminCedvel() {
   const getStatusColor = (status) => {
     switch(status) {
       case 'completed': return '#10b981';
+      case 'scheduled': return '#3b82f6';
       case 'pending': return '#f59e0b';
       case 'cancelled': return '#ef4444';
       default: return '#6b7280';
+    }
+  };
+
+  const getStatusName = (status) => {
+    switch(status) {
+      case 'completed': return 'Tamamlandı';
+      case 'scheduled': return 'Planlandı';
+      case 'pending': return 'Gözləyir';
+      case 'cancelled': return 'Ləğv edildi';
+      default: return status;
     }
   };
 
@@ -153,6 +220,7 @@ export default function AdminCedvel() {
   useEffect(() => {
     if (selectedBranch) {
       fetchAppointments();
+      fetchAllBlockedDates();
     }
   }, [selectedBranch, selectedDate]);
 
@@ -316,17 +384,39 @@ export default function AdminCedvel() {
         >
           <div style={styles.timeColumn}>Saat</div>
           
-          {branchMasseurs.map((masseur) => (
-            <div key={masseur._id} style={styles.masseurHeader}>
-              <div style={styles.masseurInfo}>
-                <User size={16} />
-                <div>
-                  <div style={styles.masseurName}>{masseur.name}</div>
-                  <div style={styles.masseurRole}>Masajist</div>
+          {branchMasseurs.map((masseur) => {
+            const isBlocked = isMasseurBlocked(masseur._id);
+            const blockInfo = getBlockInfo(masseur._id);
+            
+            return (
+              <div 
+                key={masseur._id} 
+                style={{
+                  ...styles.masseurHeader,
+                  background: isBlocked ? '#f3f4f6' : '#f8fafc'
+                }}
+              >
+                <div style={styles.masseurInfo}>
+                  <User size={16} />
+                  <div>
+                    <div style={styles.masseurName}>{masseur.name}</div>
+                    <div style={styles.masseurRole}>Masajist</div>
+                    {isBlocked && (
+                      <div style={styles.blockedBadge}>
+                        <Ban size={10} />
+                        <span>Bloklanıb</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {isBlocked && blockInfo && (
+                  <div style={styles.blockReason}>
+                    {blockInfo.reason}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {hours.map((timeSlot) => (
             <div key={timeSlot} style={styles.scheduleRow}>
@@ -335,8 +425,20 @@ export default function AdminCedvel() {
               </div>
 
               {branchMasseurs.map((masseur) => {
+                const isBlocked = isMasseurBlocked(masseur._id);
                 const appointment = isTimeSlotOccupied(masseur._id, timeSlot);
                 const isStartSlot = isAppointmentStart(masseur._id, timeSlot);
+                
+                if (isBlocked) {
+                  return (
+                    <div 
+                      key={`${masseur._id}-${timeSlot}`}
+                      style={styles.blockedSlot}
+                    >
+                      <Ban size={14} color="#9ca3af" />
+                    </div>
+                  );
+                }
                 
                 return (
                   <div 
@@ -347,22 +449,49 @@ export default function AdminCedvel() {
                       borderColor: appointment ? '#0284c7' : '#e5e7eb'
                     }}
                   >
-                    {appointment ? (
+                    {appointment && isStartSlot ? (
                       <div style={styles.appointmentCard}>
                         <div style={styles.appointmentHeader}>
-                          <div style={styles.appointmentTimeContainer}>
-                            <span style={styles.appointmentTime}>
+                          <div style={styles.appointmentMainInfo}>
+                            <div style={styles.statusRow}>
+                              <span 
+                                style={{
+                                  ...styles.statusBadge,
+                                  backgroundColor: getStatusColor(appointment.status)
+                                }}
+                              >
+                                {getStatusName(appointment.status)}
+                              </span>
+                            </div>
+                            <div style={styles.customerName}>
+                              {appointment.customer?.name || 'Ad yoxdur'}
+                            </div>
+                            <div style={styles.massageType}>
+                              {appointment.massageType?.name || 'Masaj növü yoxdur'} 
+                              <span style={styles.duration}>({appointment.duration}dəq)</span>
+                            </div>
+                            <div style={styles.appointmentTime}>
                               {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
                               {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <span 
-                              style={{
-                                ...styles.statusBadge,
-                                backgroundColor: getStatusColor(appointment.status)
-                              }}
-                            >
-                              {appointment.status}
-                            </span>
+                            </div>
+                            <div style={styles.pricePaymentRow}>
+                              <span style={styles.appointmentPrice}>
+                                {appointment.price} ₼
+                              </span>
+                              <span 
+                                style={{
+                                  ...styles.paymentMethod,
+                                  color: getPaymentMethodColor(appointment.paymentMethod)
+                                }}
+                              >
+                                {getPaymentMethodName(appointment.paymentMethod)}
+                              </span>
+                            </div>
+                            <div style={styles.receptionistRow}>
+                              <span style={styles.receptionistName}>
+                                {getReceptionistName(appointment.createdBy)}
+                              </span>
+                            </div>
                           </div>
                           <button 
                             style={styles.deleteBtn} 
@@ -372,57 +501,12 @@ export default function AdminCedvel() {
                             }}
                             title="Sil"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
-                        
-                        <div style={styles.appointmentInfo}>
-                          <div style={styles.customerRow}>
-                            <User size={12} />
-                            <span style={styles.customerName}>
-                              {appointment.customer?.name || 'Ad yoxdur'}
-                            </span>
-                          </div>
-                          
-                          <div style={styles.massageRow}>
-                            <span style={styles.massageType}>
-                              {appointment.massageType?.name || 'Masaj növü yoxdur'}
-                            </span>
-                            <span style={styles.duration}>
-                              ({appointment.duration} dəq)
-                            </span>
-                          </div>
-                          
-                          <div style={styles.priceRow}>
-                            <span style={styles.appointmentPrice}>
-                              {appointment.price} ₼
-                            </span>
-                            <span 
-                              style={{
-                                ...styles.paymentMethod,
-                                color: getPaymentMethodColor(appointment.paymentMethod)
-                              }}
-                            >
-                              {getPaymentMethodName(appointment.paymentMethod)}
-                            </span>
-                          </div>
-                          
-                          <div style={styles.receptionistRow}>
-                            <span style={styles.receptionistLabel}>Qeydiyyatçı:</span>
-                            <span style={styles.receptionistName}>
-                              {getReceptionistName(appointment.createdBy)}
-                            </span>
-                          </div>
-                          
-                          {appointment.notes && (
-                            <div style={styles.notesRow}>
-                              <span style={styles.notes}>
-                                "{appointment.notes}"
-                              </span>
-                            </div>
-                          )}
-                        </div>
                       </div>
+                    ) : appointment ? (
+                      <div style={styles.continuationSlot} />
                     ) : (
                       <div style={styles.emptySlot}>
                         <span style={{ fontSize: '11px', color: '#9ca3af' }}>Boş</span>
@@ -665,7 +749,7 @@ const styles = {
 
   masseurInfo: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '6px'
   },
 
@@ -679,6 +763,27 @@ const styles = {
   masseurRole: {
     fontSize: '10px',
     color: '#6b7280'
+  },
+
+  blockedBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '9px',
+    color: '#ef4444',
+    fontWeight: '600',
+    marginTop: '4px',
+    background: '#fee2e2',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    width: 'fit-content'
+  },
+
+  blockReason: {
+    fontSize: '9px',
+    color: '#6b7280',
+    marginTop: '4px',
+    fontStyle: 'italic'
   },
 
   scheduleRow: {
@@ -715,6 +820,17 @@ const styles = {
     position: 'relative'
   },
 
+  blockedSlot: {
+    background: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px)',
+    borderRight: '1px solid #d1d5db',
+    borderBottom: '1px solid #d1d5db',
+    minHeight: '50px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.6
+  },
+
   emptySlot: {
     display: 'flex',
     alignItems: 'center',
@@ -724,163 +840,122 @@ const styles = {
     opacity: 0.7
   },
 
+  continuationSlot: {
+    width: '100%',
+    height: '100%',
+    background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
+    border: '1px solid #0284c7',
+    opacity: 0.3
+  },
+
   appointmentCard: {
     width: '100%',
     height: '100%',
-    padding: '6px',
+    padding: '8px',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between',
     background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
     borderRadius: '4px',
-    border: '1px solid #0284c7',
-    boxShadow: '0 1px 2px rgba(2, 132, 199, 0.1)'
+    border: '2px solid #0284c7',
+    boxShadow: '0 2px 4px rgba(2, 132, 199, 0.15)'
   },
 
   appointmentHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '4px',
-    gap: '4px'
+    gap: '8px'
   },
 
-  appointmentTimeContainer: {
+  appointmentMainInfo: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px',
+    gap: '4px',
     flex: 1
   },
 
-  appointmentTime: {
-    fontSize: '9px',
-    fontWeight: '700',
-    color: '#0284c7',
-    lineHeight: 1.2
+  statusRow: {
+    marginBottom: '2px'
   },
 
   statusBadge: {
-    fontSize: '7px',
+    fontSize: '8px',
     fontWeight: '600',
     color: 'white',
-    padding: '2px 4px',
-    borderRadius: '3px',
+    padding: '3px 6px',
+    borderRadius: '4px',
     textTransform: 'capitalize',
-    alignSelf: 'flex-start'
+    display: 'inline-block'
+  },
+
+  customerName: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#1e293b'
+  },
+
+  massageType: {
+    fontSize: '11px',
+    color: '#475569',
+    fontWeight: '500'
+  },
+
+  duration: {
+    fontSize: '10px',
+    color: '#64748b',
+    marginLeft: '4px'
+  },
+
+  appointmentTime: {
+    fontSize: '10px',
+    fontWeight: '600',
+    color: '#0284c7'
+  },
+
+  pricePaymentRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '4px',
+    paddingTop: '4px',
+    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
+  },
+
+  appointmentPrice: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#059669'
+  },
+
+  paymentMethod: {
+    fontSize: '9px',
+    fontWeight: '600',
+    textTransform: 'uppercase'
+  },
+
+  receptionistRow: {
+    marginTop: '4px',
+    paddingTop: '4px',
+    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
+  },
+
+  receptionistName: {
+    fontSize: '9px',
+    color: '#475569',
+    fontWeight: '500',
+    fontStyle: 'italic'
   },
 
   deleteBtn: {
     background: '#ef4444',
     color: 'white',
     border: 'none',
-    borderRadius: '3px',
-    padding: '3px',
+    borderRadius: '4px',
+    padding: '4px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     transition: 'all 0.2s ease',
     flexShrink: 0
-  },
-
-  appointmentInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '3px'
-  },
-
-  customerRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  },
-
-  customerName: {
-    fontSize: '10px',
-    fontWeight: '700',
-    color: '#1e293b',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-
-  massageRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    flexWrap: 'wrap'
-  },
-
-  massageType: {
-    fontSize: '9px',
-    color: '#475569',
-    fontWeight: '500',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    flex: 1
-  },
-
-  duration: {
-    fontSize: '8px',
-    color: '#64748b',
-    fontWeight: '500',
-    whiteSpace: 'nowrap'
-  },
-
-  priceRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-
-  appointmentPrice: {
-    fontSize: '10px',
-    fontWeight: '700',
-    color: '#059669'
-  },
-
-  paymentMethod: {
-    fontSize: '8px',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '0.3px'
-  },
-
-  receptionistRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    marginTop: '2px',
-    paddingTop: '3px',
-    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
-  },
-
-  receptionistLabel: {
-    fontSize: '7px',
-    color: '#64748b',
-    fontWeight: '500'
-  },
-
-  receptionistName: {
-    fontSize: '7px',
-    color: '#374151',
-    fontWeight: '600'
-  },
-
-  notesRow: {
-    marginTop: '2px',
-    paddingTop: '3px',
-    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
-  },
-
-  notes: {
-    fontSize: '7px',
-    color: '#6b7280',
-    fontStyle: 'italic',
-    lineHeight: 1.3,
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical',
-    overflow: 'hidden'
   }
 };
