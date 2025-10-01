@@ -82,6 +82,10 @@ export default function Cedvel() {
   const [allMasseurs, setAllMasseurs] = useState([]);
   const [blockedMasseursForToday, setBlockedMasseursForToday] = useState([]);
 
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsappLink, setWhatsappLink] = useState('');
+  const [completedCustomerName, setCompletedCustomerName] = useState('');
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -117,7 +121,7 @@ export default function Cedvel() {
 
     while (hour < 21 || (hour === 21 && minute === 0)) {
       slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-      minute += 30;
+      minute += 15;
       if (minute >= 60) {
         minute = 0;
         hour += 1;
@@ -602,10 +606,21 @@ export default function Cedvel() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        
         await fetchDayAppointments();
         setShowAppointmentModal(false);
+        console.log(result);
+        
+        if (result.whatsappLink) {
+          setWhatsappLink(result.whatsappLink);
+          setCompletedCustomerName(selectedAppointment.customer?.name || 'Müştəri');
+          setShowWhatsAppModal(true);
+        } else {
+          alert('Randevu tamamlandı və ödəniş qeydə alındı!');
+        }
+        
         setSelectedAppointment(null);
-        alert('Randevu tamamlandı və ödəniş qeydə alındı!');
       } else {
         const error = await response.json();
         alert('Xəta: ' + (error.message || 'Randevu tamamlanmadı'));
@@ -788,8 +803,7 @@ export default function Cedvel() {
   };
 
   if (!mounted || loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    return (<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <div>Yüklənir...</div>
       </div>
     );
@@ -1060,7 +1074,161 @@ export default function Cedvel() {
         </div>
       )}
 
-      {/* Modallar əvvəlki kod ilə eynidir, dəyişiklik yoxdur */}
+      {/* WhatsApp Modal */}
+      {showWhatsAppModal && (
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          zIndex: 1000 
+        }}>
+          <div style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '16px', 
+            maxWidth: '450px', 
+            width: '90%',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ 
+              padding: '24px', 
+              backgroundColor: '#10b981', 
+              borderTopLeftRadius: '16px', 
+              borderTopRightRadius: '16px',
+              textAlign: 'center'
+            }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                backgroundColor: 'white', 
+                borderRadius: '50%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <CheckCircle size={32} color="#10b981" />
+              </div>
+              <h3 style={{ 
+                fontSize: '24px', 
+                fontWeight: '600', 
+                color: 'white', 
+                margin: '0 0 8px 0' 
+              }}>
+                Ödəniş Tamamlandı!
+              </h3>
+              <p style={{ 
+                fontSize: '14px', 
+                color: 'rgba(255,255,255,0.9)', 
+                margin: 0 
+              }}>
+                Randevu uğurla yekunlaşdırıldı
+              </p>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{ 
+                padding: '16px', 
+                backgroundColor: '#f0fdf4', 
+                border: '1px solid #86efac', 
+                borderRadius: '12px',
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: '#166534', 
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>
+                  Müştəriyə təşəkkür mesajı göndərmək istəyirsiniz?
+                </div>
+                <div style={{ 
+                  fontSize: '18px', 
+                  fontWeight: '600', 
+                  color: '#15803d' 
+                }}>
+                  {completedCustomerName}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button 
+                  onClick={() => {
+                    window.open(whatsappLink, '_blank');
+                    setShowWhatsAppModal(false);
+                    setWhatsappLink('');
+                    setCompletedCustomerName('');
+                  }}
+                  style={{ 
+                    width: '100%',
+                    padding: '14px 20px', 
+                    backgroundColor: '#25D366', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '10px', 
+                    fontSize: '15px', 
+                    fontWeight: '600', 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#20BA5A';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 211, 102, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#25D366';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 211, 102, 0.3)';
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                  WhatsApp-dan mesaj göndər
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setShowWhatsAppModal(false);
+                    setWhatsappLink('');
+                    setCompletedCustomerName('');
+                  }}
+                  style={{ 
+                    width: '100%',
+                    padding: '14px 20px', 
+                    backgroundColor: 'transparent', 
+                    color: '#64748b', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '10px', 
+                    fontSize: '15px', 
+                    fontWeight: '500', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Xeyr, ehtiyac yoxdur
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    {/* Block Masseur Modal */}
       {showBlockModal && selectedMasseurForBlock && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
@@ -1112,57 +1280,7 @@ export default function Cedvel() {
         </div>
       )}
 
-   {showBlockModal && selectedMasseurForBlock && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
-              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Masajisti Blokla</h3>
-              <button onClick={() => { setShowBlockModal(false); setSelectedMasseurForBlock(null); setBlockReason(''); }} style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div style={{ padding: '20px' }}>
-              <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px', border: '1px solid #fbbf24' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <Ban size={20} color="#f59e0b" />
-                  <span style={{ fontWeight: '600', color: '#92400e' }}>Diqqət!</span>
-                </div>
-                <div style={{ fontSize: '14px', color: '#92400e' }}>
-                  <strong>{selectedMasseurForBlock.name}</strong> masajisti <strong>{formatDateDisplay(selectedDate)}</strong> tarixində bloklamaq istəyirsiniz.
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Səbəb (istəyə bağlı):</label>
-                <textarea
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
-                  placeholder="Məsələn: İstirahət günü, xəstəlik, şəxsi səbəb..."
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button 
-                  onClick={blockMasseurForDate}
-                  style={{ flex: 1, padding: '12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                >
-                  <Ban size={16} />
-                  Blokla
-                </button>
-                <button 
-                  onClick={() => { setShowBlockModal(false); setSelectedMasseurForBlock(null); setBlockReason(''); }}
-                  style={{ flex: 1, padding: '12px', backgroundColor: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
-                >
-                  Ləğv Et
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Add Appointment Modal */}
       {showAddForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflow: 'hidden' }}>
@@ -1425,6 +1543,7 @@ export default function Cedvel() {
         </div>
       )}
 
+      {/* Edit Appointment Modal */}
       {showEditModal && selectedAppointment && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflow: 'hidden' }}>
@@ -1522,6 +1641,7 @@ export default function Cedvel() {
         </div>
       )}
 
+      {/* Add Customer Modal */}
       {showCustomerForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
@@ -1578,6 +1698,7 @@ export default function Cedvel() {
         </div>
       )}
 
+      {/* Appointment Details Modal */}
       {showAppointmentModal && selectedAppointment && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>

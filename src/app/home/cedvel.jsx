@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Building2, 
   ChevronLeft,
@@ -7,7 +7,8 @@ import {
   Calendar,
   Users,
   User,
-  Ban
+  Ban,
+  X
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 
@@ -26,6 +27,9 @@ export default function AdminCedvel() {
   const [receptionists, setReceptionists] = useState([]);
   const [blockedDates, setBlockedDates] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const calendarRef = useRef(null);
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -34,7 +38,7 @@ export default function AdminCedvel() {
 
     while (hour < 21 || (hour === 21 && minute === 0)) {
       slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-      minute += 30;
+      minute += 15;
       if (minute >= 60) {
         minute = minute % 60;
         hour += 1;
@@ -211,6 +215,29 @@ export default function AdminCedvel() {
     }
   };
 
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    return { daysInMonth, startingDayOfWeek, year, month };
+  };
+
+  const selectDate = (day) => {
+    const newDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
+    setSelectedDate(newDate);
+    setShowCalendar(false);
+  };
+
+  const changeCalendarMonth = (direction) => {
+    const newMonth = new Date(calendarMonth);
+    newMonth.setMonth(newMonth.getMonth() + direction);
+    setCalendarMonth(newMonth);
+  };
+
   useEffect(() => {
     fetchBranches();
     fetchMasseurs();
@@ -223,6 +250,22 @@ export default function AdminCedvel() {
       fetchAllBlockedDates();
     }
   }, [selectedBranch, selectedDate]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
+        setShowCalendar(false);
+      }
+    };
+
+    if (showCalendar) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCalendar]);
 
   const getBranchMasseurs = () => {
     return masseurs.filter(masseur => 
@@ -352,17 +395,98 @@ export default function AdminCedvel() {
           </button>
           
           <div style={styles.dateTitle}>
-            <Calendar size={20} />
-            <h2 style={styles.dateText}>
-              {selectedDate.toLocaleDateString('az-AZ', { 
-                year: 'numeric',
-                month: 'long', 
-                day: 'numeric',
-                weekday: 'long'
-              })}
-            </h2>
+            <button 
+              onClick={() => {
+                setCalendarMonth(new Date(selectedDate));
+                setShowCalendar(!showCalendar);
+              }} 
+              style={styles.calendarButton}
+            >
+              <Calendar size={20} />
+              <h2 style={styles.dateText}>
+                {selectedDate.toLocaleDateString('az-AZ', { 
+                  year: 'numeric',
+                  month: 'long', 
+                  day: 'numeric',
+                  weekday: 'long'
+                })}
+              </h2>
+            </button>
+            
+            {showCalendar && (
+              <div ref={calendarRef} style={styles.calendarDropdown}>
+                <div style={styles.calendarHeader}>
+                  <button 
+                    onClick={() => changeCalendarMonth(-1)} 
+                    style={styles.calendarNavBtn}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <span style={styles.calendarMonthYear}>
+                    {calendarMonth.toLocaleDateString('az-AZ', { 
+                      year: 'numeric',
+                      month: 'long'
+                    })}
+                  </span>
+                  <button 
+                    onClick={() => changeCalendarMonth(1)} 
+                    style={styles.calendarNavBtn}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  <button 
+                    onClick={() => setShowCalendar(false)} 
+                    style={styles.calendarCloseBtn}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                
+                <div style={styles.calendarWeekdays}>
+                  {['B.', 'B.e.', 'Ç.a.', 'Ç.', 'C.a.', 'C.', 'Ş.'].map(day => (
+                    <div key={day} style={styles.weekdayLabel}>{day}</div>
+                  ))}
+                </div>
+                
+                <div style={styles.calendarDays}>
+                  {(() => {
+                    const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(calendarMonth);
+                    const days = [];
+                    
+                    for (let i = 0; i < (startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1); i++) {
+                      days.push(<div key={`empty-${i}`} style={styles.emptyDay} />);
+                    }
+                    
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const isSelected = selectedDate.getDate() === day && 
+                                        selectedDate.getMonth() === month && 
+                                        selectedDate.getFullYear() === year;
+                      const isToday = new Date().getDate() === day && 
+                                     new Date().getMonth() === month && 
+                                     new Date().getFullYear() === year;
+                      
+                      days.push(
+                        <button
+                          key={day}
+                          onClick={() => selectDate(day)}
+                          style={{
+                            ...styles.calendarDay,
+                            ...(isSelected ? styles.selectedDay : {}),
+                            ...(isToday && !isSelected ? styles.todayDay : {})
+                          }}
+                        >
+                          {day}
+                        </button>
+                      );
+                    }
+                    
+                    return days;
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
-          
+             
           <button onClick={() => changeDate(1)} style={styles.dateBtn}>
             <span style={styles.dateBtnText}>Növbəti</span>
             <ChevronRight size={20} />
@@ -539,7 +663,6 @@ const styles = {
     fontSize: '18px',
     fontWeight: '600'
   },
-
   branchSelectionContainer: {
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -548,7 +671,6 @@ const styles = {
     justifyContent: 'center',
     padding: '20px'
   },
-
   branchSelectionCard: {
     background: 'white',
     borderRadius: '16px',
@@ -558,30 +680,25 @@ const styles = {
     maxWidth: '500px',
     width: '100%'
   },
-
   branchSelectionHeader: {
     marginBottom: '24px'
   },
-
   branchSelectionTitle: {
     fontSize: '24px',
     fontWeight: '700',
     color: '#1e293b',
     margin: '16px 0 8px 0'
   },
-
   branchSelectionSubtitle: {
     fontSize: '14px',
     color: '#64748b',
     margin: 0
   },
-
   branchList: {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px'
   },
-
   branchButton: {
     display: 'flex',
     alignItems: 'center',
@@ -598,18 +715,15 @@ const styles = {
     width: '100%',
     textAlign: 'left'
   },
-
   container: {
     padding: '16px',
     background: '#f8fafc',
     minHeight: '100vh',
     position: 'relative'
   },
-
   header: {
     marginBottom: '16px'
   },
-
   branchHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -622,7 +736,6 @@ const styles = {
     flexWrap: 'wrap',
     gap: '12px'
   },
-
   branchInfo: {
     display: 'flex',
     alignItems: 'center',
@@ -630,7 +743,6 @@ const styles = {
     flex: 1,
     minWidth: '200px'
   },
-
   branchName: {
     fontSize: '20px',
     fontWeight: '700',
@@ -638,7 +750,6 @@ const styles = {
     margin: 0,
     wordBreak: 'break-word'
   },
-
   changeBranchBtn: {
     background: '#667eea',
     color: 'white',
@@ -650,7 +761,6 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap'
   },
-
   dateNavigation: {
     display: 'flex',
     alignItems: 'center',
@@ -662,7 +772,6 @@ const styles = {
     flexWrap: 'wrap',
     gap: '12px'
   },
-
   dateBtn: {
     display: 'flex',
     alignItems: 'center',
@@ -677,11 +786,9 @@ const styles = {
     fontWeight: '500',
     whiteSpace: 'nowrap'
   },
-
   dateBtnText: {
     display: 'inline'
   },
-
   dateTitle: {
     display: 'flex',
     alignItems: 'center',
@@ -689,9 +796,20 @@ const styles = {
     color: '#1e293b',
     flex: 1,
     justifyContent: 'center',
-    minWidth: '200px'
+    minWidth: '200px',
+    position: 'relative'
   },
-
+  calendarButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '8px',
+    borderRadius: '8px',
+    transition: 'background 0.2s ease'
+  },
   dateText: {
     fontSize: '16px',
     fontWeight: '600',
@@ -699,7 +817,102 @@ const styles = {
     textAlign: 'center',
     wordBreak: 'break-word'
   },
-
+  calendarDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    marginTop: '8px',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+    padding: '16px',
+    zIndex: 1000,
+    minWidth: '320px'
+  },
+  calendarHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '16px',
+    gap: '8px'
+  },
+  calendarNavBtn: {
+    background: '#f1f5f9',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#475569',
+    transition: 'all 0.2s ease'
+  },
+  calendarCloseBtn: {
+    background: '#fee2e2',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyjustifyContent: 'center',
+    color: '#ef4444',
+    marginLeft: 'auto'
+  },
+  calendarMonthYear: {
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#1e293b',
+    flex: 1,
+    textAlign: 'center'
+  },
+  calendarWeekdays: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '4px',
+    marginBottom: '8px'
+  },
+  weekdayLabel: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#64748b',
+    textAlign: 'center',
+    padding: '4px'
+  },
+  calendarDays: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '4px'
+  },
+  emptyDay: {
+    padding: '8px'
+  },
+  calendarDay: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    padding: '8px',
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#475569',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    textAlign: 'center'
+  },
+  selectedDay: {
+    background: '#667eea',
+    color: 'white',
+    border: '1px solid #667eea',
+    fontWeight: '700'
+  },
+  todayDay: {
+    background: '#e0f2fe',
+    color: '#0284c7',
+    border: '1px solid #0284c7',
+    fontWeight: '600'
+  },
   masseursInfo: {
     display: 'flex',
     alignItems: 'center',
@@ -712,19 +925,16 @@ const styles = {
     fontSize: '13px',
     fontWeight: '500'
   },
-
   scheduleContainer: {
     background: 'white',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     overflow: 'auto'
   },
-
   scheduleGrid: {
     display: 'grid',
     minWidth: '800px'
   },
-
   timeColumn: {
     background: '#f8fafc',
     padding: '10px',
@@ -739,32 +949,27 @@ const styles = {
     left: 0,
     zIndex: 2
   },
-
   masseurHeader: {
     background: '#f8fafc',
     padding: '10px',
     borderRight: '1px solid #e5e7eb',
     borderBottom: '2px solid #e5e7eb'
   },
-
   masseurInfo: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '6px'
   },
-
   masseurName: {
     fontSize: '13px',
     fontWeight: '600',
     color: '#374151',
     wordBreak: 'break-word'
   },
-
   masseurRole: {
     fontSize: '10px',
     color: '#6b7280'
   },
-
   blockedBadge: {
     display: 'flex',
     alignItems: 'center',
@@ -778,18 +983,15 @@ const styles = {
     borderRadius: '4px',
     width: 'fit-content'
   },
-
   blockReason: {
     fontSize: '9px',
     color: '#6b7280',
     marginTop: '4px',
     fontStyle: 'italic'
   },
-
   scheduleRow: {
     display: 'contents'
   },
-
   timeCell: {
     background: '#f8fafc',
     padding: '6px',
@@ -803,13 +1005,11 @@ const styles = {
     left: 0,
     zIndex: 1
   },
-
   timeLabel: {
     fontSize: '11px',
     color: '#374151',
     fontWeight: '500'
   },
-
   timeSlot: {
     borderRight: '1px solid #e5e7eb',
     borderBottom: '1px solid #f3f4f6',
@@ -819,7 +1019,6 @@ const styles = {
     justifyContent: 'center',
     position: 'relative'
   },
-
   blockedSlot: {
     background: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px)',
     borderRight: '1px solid #d1d5db',
@@ -830,7 +1029,6 @@ const styles = {
     justifyContent: 'center',
     opacity: 0.6
   },
-
   emptySlot: {
     display: 'flex',
     alignItems: 'center',
@@ -839,7 +1037,6 @@ const styles = {
     height: '100%',
     opacity: 0.7
   },
-
   continuationSlot: {
     width: '100%',
     height: '100%',
@@ -847,7 +1044,6 @@ const styles = {
     border: '1px solid #0284c7',
     opacity: 0.3
   },
-
   appointmentCard: {
     width: '100%',
     height: '100%',
@@ -859,25 +1055,21 @@ const styles = {
     border: '2px solid #0284c7',
     boxShadow: '0 2px 4px rgba(2, 132, 199, 0.15)'
   },
-
   appointmentHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: '8px'
   },
-
   appointmentMainInfo: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
     flex: 1
   },
-
   statusRow: {
     marginBottom: '2px'
   },
-
   statusBadge: {
     fontSize: '8px',
     fontWeight: '600',
@@ -887,31 +1079,26 @@ const styles = {
     textTransform: 'capitalize',
     display: 'inline-block'
   },
-
   customerName: {
     fontSize: '13px',
     fontWeight: '700',
     color: '#1e293b'
   },
-
   massageType: {
     fontSize: '11px',
     color: '#475569',
     fontWeight: '500'
   },
-
   duration: {
     fontSize: '10px',
     color: '#64748b',
     marginLeft: '4px'
   },
-
   appointmentTime: {
     fontSize: '10px',
     fontWeight: '600',
     color: '#0284c7'
   },
-
   pricePaymentRow: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -920,32 +1107,27 @@ const styles = {
     paddingTop: '4px',
     borderTop: '1px solid rgba(2, 132, 199, 0.2)'
   },
-
   appointmentPrice: {
     fontSize: '12px',
     fontWeight: '700',
     color: '#059669'
   },
-
   paymentMethod: {
     fontSize: '9px',
     fontWeight: '600',
     textTransform: 'uppercase'
   },
-
   receptionistRow: {
     marginTop: '4px',
     paddingTop: '4px',
     borderTop: '1px solid rgba(2, 132, 199, 0.2)'
   },
-
   receptionistName: {
     fontSize: '9px',
     color: '#475569',
     fontWeight: '500',
     fontStyle: 'italic'
   },
-
   deleteBtn: {
     background: '#ef4444',
     color: 'white',
