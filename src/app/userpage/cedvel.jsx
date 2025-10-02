@@ -86,6 +86,9 @@ export default function Cedvel() {
   const [whatsappLink, setWhatsappLink] = useState('');
   const [completedCustomerName, setCompletedCustomerName] = useState('');
 
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(new Date());
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -339,6 +342,32 @@ export default function Cedvel() {
     newDate.setDate(newDate.getDate() + direction);
     setSelectedDate(newDate);
   };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    return { daysInMonth, startingDayOfWeek };
+  };
+
+  const selectDateFromCalendar = (day) => {
+    const newDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day);
+    setSelectedDate(newDate);
+    setShowCalendar(false);
+  };
+
+  const changeCalendarMonth = (direction) => {
+    const newDate = new Date(calendarDate);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setCalendarDate(newDate);
+  };
+
+  const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+  const weekDays = ['B.e', 'Ç.a', 'Ç', 'C.a', 'C', 'Ş', 'B'];
 
   const validateGiftCard = async (cardNumber) => {
     if (!cardNumber.trim()) {
@@ -610,7 +639,6 @@ export default function Cedvel() {
         
         await fetchDayAppointments();
         setShowAppointmentModal(false);
-        console.log(result);
         
         if (result.whatsappLink) {
           setWhatsappLink(result.whatsappLink);
@@ -775,8 +803,7 @@ export default function Cedvel() {
 
   const openAppointmentModal = (appointment) => {
     setSelectedAppointment(appointment);
-    setShowAppointmentModal(true);
-  };
+    setShowAppointmentModal(true);};
 
   const getAvailableDurations = () => {
     if (!formData.massageType) return [];
@@ -825,25 +852,183 @@ export default function Cedvel() {
           <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userBranch.name} - Günlük Cədvəl</h2>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative' }}>
           <button onClick={() => changeDate(-1)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', border: '1px solid #e2e8f0', backgroundColor: 'white', borderRadius: '8px', cursor: 'pointer' }}>
             <ChevronLeft size={20} />
             Əvvəlki
           </button>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', backgroundColor: '#667eea', borderRadius: '8px', color: 'white' }}>
+          <div 
+            onClick={() => setShowCalendar(!showCalendar)}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', backgroundColor: '#667eea', borderRadius: '8px', color: 'white', cursor: 'pointer' }}
+          >
             <Calendar size={24} />
             <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>{formatDateDisplay(selectedDate)}</h2>
           </div>
+
+          {showCalendar && (
+            <>
+              <div 
+                onClick={() => setShowCalendar(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 999
+                }}
+              />
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginTop: '8px',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                padding: '20px',
+                minWidth: '320px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); changeCalendarMonth(-1); }}
+                    style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', borderRadius: '6px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={calendarDate.getMonth()}
+                      onChange={(e) => {
+                        const newDate = new Date(calendarDate);
+                        newDate.setMonth(parseInt(e.target.value));
+                        setCalendarDate(newDate);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
+                    >
+                      {monthNames.map((month, idx) => (
+                        <option key={idx} value={idx}>{month}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={calendarDate.getFullYear()}
+                      onChange={(e) => {
+                        const newDate = new Date(calendarDate);
+                        newDate.setFullYear(parseInt(e.target.value));
+                        setCalendarDate(newDate);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
+                    >
+                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); changeCalendarMonth(1); }}
+                    style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', borderRadius: '6px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '8px' }}>
+                  {weekDays.map(day => (
+                    <div key={day} style={{ textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#64748b', padding: '8px 0' }}>
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                  {Array.from({ length: getDaysInMonth(calendarDate).startingDayOfWeek === 0 ? 6 : getDaysInMonth(calendarDate).startingDayOfWeek - 1 }).map((_, idx) => (
+                    <div key={`empty-${idx}`} style={{ padding: '8px' }}></div>
+                  ))}
+                  
+                  {Array.from({ length: getDaysInMonth(calendarDate).daysInMonth }).map((_, idx) => {
+                    const day = idx + 1;
+                    const isToday = new Date().toDateString() === new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day).toDateString();
+                    const isSelected = selectedDate.toDateString() === new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day).toDateString();
+                    
+                    return (
+                      <button
+                        key={day}
+                        onClick={(e) => { e.stopPropagation(); selectDateFromCalendar(day); }}
+                        style={{
+                          padding: '8px',
+                          border: 'none',
+                          backgroundColor: isSelected ? '#667eea' : (isToday ? '#eff6ff' : 'transparent'),
+                          color: isSelected ? 'white' : (isToday ? '#3b82f6' : '#1e293b'),
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: isSelected || isToday ? '600' : '400',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.backgroundColor = isToday ? '#eff6ff' : 'transparent';
+                          }
+                        }}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDate(new Date());
+                      setCalendarDate(new Date());
+                      setShowCalendar(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      color: '#667eea'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                  >
+                    Bu gün
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
           
           <button onClick={() => changeDate(1)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', border: '1px solid #e2e8f0', backgroundColor: 'white', borderRadius: '8px', cursor: 'pointer' }}>
             Növbəti
             <ChevronRight size={20} />
           </button>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', padding: '12px 20px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      </div><div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', padding: '12px 20px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <Users size={20} />
         <span>Aktiv Masajistlər: {masseurs.length} nəfər</span>
         {blockedMasseursForToday.length > 0 && (
@@ -1228,7 +1413,7 @@ export default function Cedvel() {
         </div>
       )}
 
-    {/* Block Masseur Modal */}
+      {/* Block Masseur Modal */}
       {showBlockModal && selectedMasseurForBlock && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
@@ -1280,7 +1465,7 @@ export default function Cedvel() {
         </div>
       )}
 
-      {/* Add Appointment Modal */}
+      {/* Add Appointment Modal - Növbəti mesajda göndərəcəm */}{/* Add Appointment Modal */}
       {showAddForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflow: 'hidden' }}>
@@ -1698,7 +1883,7 @@ export default function Cedvel() {
         </div>
       )}
 
-      {/* Appointment Details Modal */}
+      {/* Appointment Details Modal - Növbəti mesajda */}{/* Appointment Details Modal */}
       {showAppointmentModal && selectedAppointment && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%' }}>
