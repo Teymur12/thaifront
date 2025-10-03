@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Building2, 
   Users, 
@@ -17,10 +17,16 @@ import {
 import Hesabat from '../userpage/hesabat.jsx';
 import Cedvel from '../userpage/cedvel.jsx';
 import GiftCardManager from './GiftCardManager.jsx';
+import WeeklyBlockManager from './WeeklyBlockManager.jsx';
+import Cookies from 'js-cookie';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://thaiback.onrender.com/api';
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true); // 🔹 Başlanğıcda bağlı olsun
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [activeItem, setActiveItem] = useState('hesabat');
+  const [masseurs, setMasseurs] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const menuItems = [
     {
@@ -40,23 +46,63 @@ export default function Sidebar() {
      label: 'Hədiyyə Kartları',
      icon: Gift,
      message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
+   },
+   {
+     id: 'blockeddays',
+     label: 'İstirahət günləri',
+     icon: Users,
+     message: 'Salam! Bu İstirahət günləri bölməsidir.'
    }
   ];
+const getToken = () => {
+    return Cookies.get('authToken');
+  };
 
-  // 🔹 Çıxış funksiyası
+
+  // Masajistləri çək
+  const fetchMasseurs = async () => {
+    try {
+      setLoading(true);
+      const token = getToken();
+      
+      if (!token) {
+        console.error('Token tapılmadı');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/receptionist/masseurs/${token}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMasseurs(data);
+      } else {
+        console.error('Masajistləri çəkməkdə xəta');
+      }
+    } catch (error) {
+      console.error('Fetch masseurs error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Component yüklənəndə masajistləri çək
+  useEffect(() => {
+    fetchMasseurs();
+  }, []);
+
   const handleLogout = () => {
     try {
-      // LocalStorage-dan userData-nı sil
       if (typeof window !== 'undefined') {
         localStorage.removeItem('userData');
+        localStorage.removeItem('token');
       }
       
-      // Cookie-dən authToken-i sil
-      // Cookies.remove('authToken'); // Əgər js-cookie istifadə edirsinizsə
       document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      
-      // Sayta yönləndirmə və ya login səhifəsinə keçid
-      window.location.href = '/userlogin'; // və ya istədiyiniz səhifə
+      window.location.href = '/userlogin';
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -70,17 +116,22 @@ export default function Sidebar() {
     setIsCollapsed(!isCollapsed);
   };
 
- const renderContent = () => {
-  if (activeItem === 'hesabat') {
-    return <Hesabat />;
-  }
+  const renderContent = () => {
+    if (activeItem === 'hesabat') {
+      return <Hesabat />;
+    }
 
-  if (activeItem === 'cedvel') {
-    return <Cedvel />;   // 🔹 Cədvəl burda çağırılır
-  }
-   if (activeItem === 'giftcards') {
-     return <GiftCardManager />;
-   }
+    if (activeItem === 'cedvel') {
+      return <Cedvel />;
+    }
+    
+    if (activeItem === 'giftcards') {
+      return <GiftCardManager />;
+    }
+    
+    if (activeItem === 'blockeddays') {
+      return <WeeklyBlockManager masseurs={masseurs} loading={loading} />;
+    }
   
     return (
       <div style={styles.content}>
@@ -162,7 +213,6 @@ export default function Sidebar() {
                   {!isCollapsed && <span style={styles.menuText}>{item.label}</span>}
                 </button>
                 
-                {/* Active indicator */}
                 {isActive && (
                   <div style={styles.activeIndicator}></div>
                 )}
@@ -170,14 +220,14 @@ export default function Sidebar() {
             );
           })}
 
-          {/* 🔹 Çıxış düyməsi */}
+          {/* Çıxış düyməsi */}
           <div style={styles.menuItemWrapper}>
             <button
               onClick={handleLogout}
               style={{
                 ...styles.menuItem,
                 backgroundColor: 'transparent',
-                color: '#dc2626', // Qırmızı rəng
+                color: '#dc2626',
                 justifyContent: isCollapsed ? 'center' : 'flex-start'
               }}
               onMouseOver={(e) => {
@@ -204,7 +254,7 @@ export default function Sidebar() {
                 <span>R</span>
               </div>
               <div style={styles.userDetails}>
-                <p style={styles.userName}> Reception</p>
+                <p style={styles.userName}>Reception</p>
                 <p style={styles.userRole}>Reception</p>
               </div>
             </div>

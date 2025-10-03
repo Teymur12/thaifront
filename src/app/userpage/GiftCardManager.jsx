@@ -146,7 +146,7 @@ export default function GiftCardManager() {
 
   // Create gift card
   const createGiftCard = async () => {
-    if (!formData.cardNumber || !formData.massageType || !formData.duration || !formData.originalPrice || !formData.purchasedBy) {
+    if (!formData.cardNumber || !formData.massageType || !formData.duration || !formData.purchasedBy) {
       alert('Zəhmət olmasa bütün sahələri doldurun!');
       return;
     }
@@ -154,6 +154,14 @@ export default function GiftCardManager() {
     try {
       setLoading(true);
       const token = getToken();
+      
+      // Find the selected massage type and duration to get the price
+      const selectedMassage = massageTypes.find(m => m._id === formData.massageType);
+      const selectedDuration = selectedMassage?.durations.find(d => d.minutes === parseInt(formData.duration));
+      
+      // Calculate gift card price automatically (massage price + 5 AZN)
+      const giftCardPrice = selectedDuration ? selectedDuration.price + 5 : parseFloat(formData.originalPrice);
+      
       const response = await fetch(`${API_BASE}/gift-cards/${token}`, {
         method: 'POST',
         headers: {
@@ -163,7 +171,7 @@ export default function GiftCardManager() {
         body: JSON.stringify({
           ...formData,
           duration: parseInt(formData.duration),
-          originalPrice: parseFloat(formData.originalPrice)
+          originalPrice: giftCardPrice // Avtomatik hesablanmış qiymət
         })
       });
 
