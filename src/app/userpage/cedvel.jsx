@@ -620,44 +620,47 @@ export default function Cedvel() {
     }
   };
 
-  const completeAppointment = async (paymentMethod) => {
-    if (!selectedAppointment) return;
+const completeAppointment = async (paymentMethod) => {
+  if (!selectedAppointment) return;
 
-    try {
-      const token = getToken();
-      const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}/complete/${token}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ paymentMethod })
-      });
+  setLoading(true); // ← Bura baxın (setIsLoading deyil)
+  try {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}/complete/${token}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ paymentMethod })
+    });
 
-      if (response.ok) {
-        const result = await response.json();
-        
-        await fetchDayAppointments();
-        setShowAppointmentModal(false);
-        
-        if (result.whatsappLink) {
-          setWhatsappLink(result.whatsappLink);
-          setCompletedCustomerName(selectedAppointment.customer?.name || 'Müştəri');
-          setShowWhatsAppModal(true);
-        } else {
-          alert('Randevu tamamlandı və ödəniş qeydə alındı!');
-        }
-        
-        setSelectedAppointment(null);
+    if (response.ok) {
+      const result = await response.json();
+      
+      await fetchDayAppointments();
+      setShowAppointmentModal(false);
+      
+      if (result.whatsappLink) {
+        setWhatsappLink(result.whatsappLink);
+        setCompletedCustomerName(selectedAppointment.customer?.name || 'Müştəri');
+        setShowWhatsAppModal(true);
       } else {
-        const error = await response.json();
-        alert('Xəta: ' + (error.message || 'Randevu tamamlanmadı'));
+        alert('Randevu tamamlandı və ödəniş qeydə alındı!');
       }
-    } catch (error) {
-      console.error('Complete appointment error:', error);
-      alert('Randevu tamamlanarkən xəta baş verdi');
+      
+      setSelectedAppointment(null);
+    } else {
+      const error = await response.json();
+      alert('Xəta: ' + (error.message || 'Randevu tamamlanmadı'));
     }
-  };
+  } catch (error) {
+    console.error('Complete appointment error:', error);
+    alert('Randevu tamamlanarkən xəta baş verdi');
+  } finally {
+    setLoading(false); // ← Burda da
+  }
+};
 
   const openEditModal = (appointment) => {
     setSelectedAppointment(appointment);

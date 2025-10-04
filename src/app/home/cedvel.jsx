@@ -8,7 +8,9 @@ import {
   Users,
   User,
   Ban,
-  X
+  X,
+  Plus,
+  Search
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 
@@ -30,6 +32,23 @@ export default function AdminCedvel() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const calendarRef = useRef(null);
+  
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [massageTypes, setMassageTypes] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [newAppointment, setNewAppointment] = useState({
+    customer: '',
+    masseur: '',
+    massageType: '',
+    duration: '',
+    price: 0,
+    advancePayment: {
+      amount: 0,
+      paymentMethod: 'cash'
+    }
+  });
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -88,6 +107,34 @@ export default function AdminCedvel() {
       }
     } catch (error) {
       console.error('Resepsiyon işçiləri yüklənə bilmədi:', error);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/customers/${getToken()}`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCustomers(data);
+      }
+    } catch (error) {
+      console.error('Müştərilər yüklənə bilmədi:', error);
+    }
+  };
+
+  const fetchMassageTypes = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/massage-types/${getToken()}`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMassageTypes(data);
+      }
+    } catch (error) {
+      console.error('Masaj növləri yüklənə bilmədi:', error);
     }
   };
 
@@ -242,6 +289,8 @@ export default function AdminCedvel() {
     fetchBranches();
     fetchMasseurs();
     fetchReceptionists();
+    fetchCustomers();
+    fetchMassageTypes();
   }, []);
 
   useEffect(() => {
@@ -337,6 +386,126 @@ export default function AdminCedvel() {
     newDate.setDate(newDate.getDate() + direction);
     setSelectedDate(newDate);
   };
+
+  const openAddAppointmentModal = (masseurId, timeSlot) => {
+    const isBlocked = isMasseurBlocked(masseurId);
+    if (isBlocked) {
+      alert('Bu masajist bu tarixdə bloklanıb!');
+      return;
+    }
+
+    const appointment = isTimeSlotOccupied(masseurId, timeSlot);
+    if (appointment) {
+      alert('Bu vaxt aralığında randevu var!');
+      return;
+    }
+
+    setSelectedSlot({ masseurId, timeSlot });
+    setNewAppointment({
+      customer: '',
+      masseur: masseurId,
+      massageType: '',
+      duration: '',
+      price: 0,
+      advancePayment: {
+        amount: 0,
+        paymentMethod: 'cash'
+      }
+    });
+    setCustomerSearch('');
+    setShowAddModal(true);
+  };
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setSelectedSlot(null);
+    setNewAppointment({
+      customer: '',
+      masseur: '',
+      massageType: '',
+      duration: '',
+      price: 0,
+      advancePayment: {
+        amount: 0,
+        paymentMethod: 'cash'
+      }
+    });
+    setCustomerSearch('');
+  };
+
+  const handleMassageTypeChange = (massageTypeId) => {
+    setNewAppointment({
+      ...newAppointment,
+      massageType: massageTypeId,
+      duration: '',
+      price: 0
+    });
+  };
+
+  const createAppointment = async () => {
+    if (!newAppointment.customer || !newAppointment.massageType || !newAppointment.duration) {
+      alert('Zəhmət olmasa bütün məcburi sahələri doldurun!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const [hours, minutes] = selectedSlot.timeSlot.split(':').map(Number);
+      const startTime = new Date(selectedDate);
+      startTime.setHours(hours, minutes, 0, 0);
+      
+      const endTime = new Date(startTime);
+      endTime.setMinutes(endTime.getMinutes() + parseInt(newAppointment.duration));
+
+      const appointmentData = {
+        customer: newAppointment.customer,
+        masseur: newAppointment.masseur,
+        massageType: newAppointment.massageType,
+        branch: selectedBranch,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        duration: parseInt(newAppointment.duration),
+        price: newAppointment.price,
+        status: 'scheduled',
+        paymentMethod: 'cash',
+        createdBy:"68ca9d919e196ab4cd5e3b61"
+      };
+
+      if (newAppointment.advancePayment.amount > 0) {
+        appointmentData.advancePayment = {
+          amount: parseFloat(newAppointment.advancePayment.amount),
+          paymentMethod: newAppointment.advancePayment.paymentMethod
+        };
+      }
+
+      const response = await fetch(`${API_BASE}/admin/appointments/${getToken()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(appointmentData)
+      });
+
+      if (response.ok) {
+        await fetchAppointments();
+        closeAddModal();
+        alert('Randevu uğurla yaradıldı!');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Randevu yaradıla bilmədi');
+      }
+    } catch (error) {
+      console.error('Randevu yaradılarkən xəta:', error);
+      alert(error.message || 'Randevu yaradılarkən xəta baş verdi!');
+    }
+    setLoading(false);
+  };
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    customer.phone.includes(customerSearch)
+  );
 
   if (!selectedBranch) {
     return (
@@ -570,8 +739,10 @@ export default function AdminCedvel() {
                     style={{
                       ...styles.timeSlot,
                       backgroundColor: appointment ? '#e0f2fe' : '#ffffff',
-                      borderColor: appointment ? '#0284c7' : '#e5e7eb'
+                      borderColor: appointment ? '#0284c7' : '#e5e7eb',
+                      cursor: !appointment && !isBlocked ? 'pointer' : 'default'
                     }}
+                    onClick={() => !appointment && !isBlocked && openAddAppointmentModal(masseur._id, timeSlot)}
                   >
                     {appointment && isStartSlot ? (
                       <div style={styles.appointmentCard}>
@@ -633,7 +804,7 @@ export default function AdminCedvel() {
                       <div style={styles.continuationSlot} />
                     ) : (
                       <div style={styles.emptySlot}>
-                        <span style={{ fontSize: '11px', color: '#9ca3af' }}>Boş</span>
+                        <Plus size={16} color="#9ca3af" />
                       </div>
                     )}
                   </div>
@@ -643,6 +814,182 @@ export default function AdminCedvel() {
           ))}
         </div>
       </div>
+
+      {showAddModal && (
+        <div style={styles.modalOverlay} onClick={closeAddModal}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Yeni Randevu</h3>
+              <button onClick={closeAddModal} style={styles.modalCloseBtn}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={styles.modalBody}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Masajist</label>
+                <input
+                  type="text"
+                  value={masseurs.find(m => m._id === selectedSlot?.masseurId)?.name || ''}
+                  disabled
+                  style={{ ...styles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Vaxt</label>
+                <input
+                  type="text"
+                  value={selectedSlot?.timeSlot || ''}
+                  disabled
+                  style={{ ...styles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Müştəri Axtar *</label>
+                <div style={styles.searchContainer}>
+                  <Search size={18} color="#9ca3af" style={styles.searchIcon} />
+                  <input
+                    type="text"
+                    placeholder="Ad və ya telefon nömrəsi ilə axtar..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    style={styles.searchInput}
+                  />
+                </div>
+                {customerSearch && (
+                  <div style={styles.customerList}>
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.map(customer => (
+                        <div
+                          key={customer._id}
+                          onClick={() => {
+                            setNewAppointment({ ...newAppointment, customer: customer._id });
+                            setCustomerSearch(customer.name);
+                          }}
+                          style={styles.customerItem}
+                        >
+                          <div style={styles.customerName}>{customer.name}</div>
+                          <div style={styles.customerPhone}>{customer.phone}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={styles.noResults}>Müştəri tapılmadı</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Masaj Növü *</label>
+                <select
+                  value={newAppointment.massageType}
+                  onChange={(e) => handleMassageTypeChange(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Seçin</option>
+                  {massageTypes.map(type => (
+                    <option key={type._id} value={type._id}>{type.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {newAppointment.massageType && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Müddət *</label>
+                  <select
+                    value={newAppointment.duration}
+                    onChange={(e) => {
+                      const selectedType = massageTypes.find(mt => mt._id === newAppointment.massageType);
+                      const selectedDuration = selectedType?.durations.find(d => d.minutes === parseInt(e.target.value));
+                      if (selectedDuration) {
+                        setNewAppointment({
+                          ...newAppointment,
+                          duration: selectedDuration.minutes,
+                          price: selectedDuration.price
+                        });
+                      }
+                    }}
+                    style={styles.select}
+                  >
+                    <option value="">Seçin</option>
+                    {massageTypes
+                      .find(mt => mt._id === newAppointment.massageType)
+                      ?.durations.map(duration => (
+                        <option key={duration._id} value={duration.minutes}>
+                          {duration.minutes} dəqiqə - {duration.price} ₼
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {newAppointment.price > 0 && (
+                <>
+                  <div style={styles.priceDisplay}>
+                    <span>Qiymət:</span>
+                    <strong>{newAppointment.price} ₼</strong>
+                  </div>
+
+                  <div style={styles.advancePaymentSection}>
+                    <h4 style={styles.sectionTitle}>Avans Ödənişi (İstəyə bağlı)</h4>
+                    
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Avans məbləği</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={newAppointment.price}
+                        value={newAppointment.advancePayment.amount}
+                        onChange={(e) => setNewAppointment({
+                          ...newAppointment,
+                          advancePayment: {
+                            ...newAppointment.advancePayment,
+                            amount: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                        style={styles.input}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    {newAppointment.advancePayment.amount > 0 && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Ödəniş üsulu</label>
+                        <select
+                          value={newAppointment.advancePayment.paymentMethod}
+                          onChange={(e) => setNewAppointment({
+                            ...newAppointment,
+                            advancePayment: {
+                              ...newAppointment.advancePayment,
+                              paymentMethod: e.target.value
+                            }
+                          })}
+                          style={styles.select}
+                        >
+                          <option value="cash">Nağd</option>
+                          <option value="card">Kart</option>
+                          <option value="terminal">Terminal</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button onClick={closeAddModal} style={styles.cancelBtn}>
+                Ləğv et
+              </button>
+              <button onClick={createAppointment} style={styles.createBtn}>
+                Randevu Yarat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -857,7 +1204,7 @@ const styles = {
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyjustifyContent: 'center',
+    justifyContent: 'center',
     color: '#ef4444',
     marginLeft: 'auto'
   },
@@ -1139,5 +1486,194 @@ const styles = {
     alignItems: 'center',
     transition: 'all 0.2s ease',
     flexShrink: 0
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
+    padding: '20px'
+  },
+  modalContent: {
+    background: 'white',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '500px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0
+  },
+  modalCloseBtn: {
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#64748b',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: '6px',
+    transition: 'all 0.2s ease'
+  },
+  modalBody: {
+    padding: '20px',
+    overflowY: 'auto',
+    flex: 1
+  },
+  formGroup: {
+    marginBottom: '16px'
+  },
+  label: {
+    display: 'block',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '6px'
+  },
+  input: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#1e293b',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s ease'
+  },
+  select: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#1e293b',
+    backgroundColor: 'white',
+    cursor: 'pointer',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s ease'
+  },
+  searchContainer: {
+    position: 'relative'
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none'
+  },
+  searchInput: {
+    width: '100%',
+    padding: '10px 12px 10px 40px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#1e293b',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s ease'
+  },
+  customerList: {
+    marginTop: '8px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    maxHeight: '200px',
+    overflowY: 'auto',
+    background: 'white'
+  },
+  customerItem: {
+    padding: '12px',
+    cursor: 'pointer',
+    borderBottom: '1px solid #f3f4f6',
+    transition: 'background 0.2s ease'
+  },
+  customerName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: '2px'
+  },
+  customerPhone: {
+    fontSize: '12px',
+    color: '#64748b'
+  },
+  noResults: {
+    padding: '12px',
+    textAlign: 'center',
+    color: '#9ca3af',
+    fontSize: '13px'
+  },
+  priceDisplay: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    background: '#f0fdf4',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '15px',
+    color: '#166534',
+    fontWeight: '600'
+  },
+  advancePaymentSection: {
+    padding: '16px',
+    background: '#f8fafc',
+    borderRadius: '8px',
+    marginTop: '16px'
+  },
+  sectionTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 0,
+    marginBottom: '12px'
+  },
+  modalFooter: {
+    display: 'flex',
+    gap: '12px',
+    padding: '20px',
+    borderTop: '1px solid #e5e7eb'
+  },
+  cancelBtn: {
+    flex: 1,
+    padding: '12px',
+    background: '#f3f4f6',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  createBtn: {
+    flex: 1,
+    padding: '12px',
+    background: '#667eea',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
   }
 };
