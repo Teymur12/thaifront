@@ -57,7 +57,7 @@ export default function AdminCedvel() {
 
     while (hour < 21 || (hour === 21 && minute === 0)) {
       slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-      minute += 10;
+      minute += 5;
       if (minute >= 60) {
         minute = minute % 60;
         hour += 1;
