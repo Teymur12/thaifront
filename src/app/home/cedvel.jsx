@@ -1,23 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  Building2, 
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-  Calendar,
-  Users,
-  User,
-  Ban,
-  X,
-  Plus,
-  Search
-} from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, Trash2, Calendar, Users, User, Ban, X, Plus, Search } from 'lucide-react';
 import Cookies from 'js-cookie';
 
-const getToken = () => {
-  return Cookies.get('authToken');
-};
-
+const getToken = () => Cookies.get('authToken');
 const API_BASE = 'https://thaiback.onrender.com/api';
 
 export default function AdminCedvel() {
@@ -32,60 +17,35 @@ export default function AdminCedvel() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const calendarRef = useRef(null);
-  
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [massageTypes, setMassageTypes] = useState([]);
   const [customerSearch, setCustomerSearch] = useState('');
   const [newAppointment, setNewAppointment] = useState({
-    customer: '',
-    masseur: '',
-    massageType: '',
-    duration: '',
-    price: 0,
-    advancePayment: {
-      amount: 0,
-      paymentMethod: 'cash'
-    }
+    customer: '', masseur: '', massageType: '', duration: '', price: 0,
+    advancePayment: { amount: 0, paymentMethod: 'cash' }
   });
+
+  const SLOT_HEIGHT = 180; // px per hour
 
   const generateTimeSlots = () => {
     const slots = [];
-    let hour = 10;
-    let minute = 30;
-
-    while (hour < 24 || (hour === 24 && minute === 0)) {
-      slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-      minute += 5;
-      if (minute >= 60) {
-        minute = minute % 60;
-        hour += 1;
-      }
+    for (let hour = 10; hour < 24; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;
   };
 
   const hours = generateTimeSlots();
 
-  const getCurrentTimeSlot = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTimeString = `${currentHour.toString().padStart(2, '0')}:${Math.floor(currentMinute / 15) * 15}`.padStart(5, '0');
-    return currentTimeString;
-  };
-
   const isCurrentTimeSlot = (timeSlot) => {
     const now = new Date();
-    const [slotHour, slotMinute] = timeSlot.split(':').map(Number);
-    
+    const [slotHour] = timeSlot.split(':').map(Number);
     const slotTime = new Date(now);
-    slotTime.setHours(slotHour, slotMinute, 0, 0);
-    
+    slotTime.setHours(slotHour, 0, 0, 0);
     const nextSlotTime = new Date(slotTime);
-    nextSlotTime.setMinutes(nextSlotTime.getMinutes() + 15);
-    
+    nextSlotTime.setHours(nextSlotTime.getHours() + 1);
     return now >= slotTime && now < nextSlotTime;
   };
 
@@ -171,9 +131,7 @@ export default function AdminCedvel() {
     try {
       const response = await fetch(
         `${API_BASE}/admin/masseurs/${masseurId}/blocked-dates/${getToken()}`,
-        {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        }
+        { headers: { 'Authorization': `Bearer ${getToken()}` } }
       );
       if (response.ok) {
         const data = await response.json();
@@ -188,30 +146,24 @@ export default function AdminCedvel() {
   const fetchAllBlockedDates = async () => {
     const branchMasseurs = getBranchMasseurs();
     const blocked = {};
-    
     for (const masseur of branchMasseurs) {
       const dates = await fetchBlockedDates(masseur._id);
       blocked[masseur._id] = dates;
     }
-    
     setBlockedDates(blocked);
   };
 
   const fetchAppointments = async () => {
     if (!selectedBranch) return;
-    
     setLoading(true);
     try {
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
-      
       const response = await fetch(
         `${API_BASE}/appointments/daily/${selectedBranch}/${dateStr}/${getToken()}`,
-        {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        }
+        { headers: { 'Authorization': `Bearer ${getToken()}` } }
       );
       if (response.ok) {
         const data = await response.json();
@@ -227,7 +179,6 @@ export default function AdminCedvel() {
     const blocked = blockedDates[masseurId] || [];
     const checkDate = new Date(selectedDate);
     checkDate.setHours(0, 0, 0, 0);
-    
     return blocked.some(block => {
       const blockDate = new Date(block.date);
       blockDate.setHours(0, 0, 0, 0);
@@ -239,7 +190,6 @@ export default function AdminCedvel() {
     const blocked = blockedDates[masseurId] || [];
     const checkDate = new Date(selectedDate);
     checkDate.setHours(0, 0, 0, 0);
-    
     return blocked.find(block => {
       const blockDate = new Date(block.date);
       blockDate.setHours(0, 0, 0, 0);
@@ -298,7 +248,6 @@ export default function AdminCedvel() {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
     return { daysInMonth, startingDayOfWeek, year, month };
   };
 
@@ -335,11 +284,9 @@ export default function AdminCedvel() {
         setShowCalendar(false);
       }
     };
-
     if (showCalendar) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -359,49 +306,60 @@ export default function AdminCedvel() {
 
   const isTimeSlotOccupied = (masseurId, time) => {
     const masseurAppointments = getMasseurAppointments(masseurId);
-    
     return masseurAppointments.find(appointment => {
       const appointmentStart = new Date(appointment.startTime);
       const appointmentEnd = new Date(appointment.endTime);
-      
-      const slotTime = new Date(selectedDate);
-      const [hours, minutes] = time.split(':').map(Number);
-      slotTime.setHours(hours, minutes, 0, 0);
-      
-      return slotTime >= appointmentStart && slotTime < appointmentEnd;
+      const [slotHour] = time.split(':').map(Number);
+      const slotTime = new Date(appointmentStart);
+      slotTime.setHours(slotHour, 0, 0, 0);
+      const slotEndTime = new Date(slotTime);
+      slotEndTime.setHours(slotEndTime.getHours() + 1);
+      return (appointmentStart < slotEndTime && appointmentEnd > slotTime);
     });
   };
 
   const isAppointmentStart = (masseurId, time) => {
     const masseurAppointments = getMasseurAppointments(masseurId);
-    
     return masseurAppointments.find(appointment => {
       const appointmentStart = new Date(appointment.startTime);
-      
-      const slotTime = new Date(selectedDate);
-      const [hours, minutes] = time.split(':').map(Number);
-      slotTime.setHours(hours, minutes, 0, 0);
-      
-      // Compare using timestamps to avoid timezone issues
-      const appointmentStartTime = appointmentStart.getTime();
-      const slotTimeTime = slotTime.getTime();
-      
-      // Check if the appointment starts within this 15-minute slot
-      return appointmentStartTime >= slotTimeTime && 
-             appointmentStartTime < slotTimeTime + (15 * 60 * 1000);
+      const [slotHour] = time.split(':').map(Number);
+      const slotTime = new Date(appointmentStart);
+      slotTime.setHours(slotHour, 0, 0, 0);
+      const slotEndTime = new Date(slotTime);
+      slotEndTime.setHours(slotEndTime.getHours() + 1);
+      return appointmentStart >= slotTime && appointmentStart < slotEndTime;
     });
+  };
+
+  const getAppointmentHeight = (appointment) => {
+    const start = new Date(appointment.startTime);
+    const end = new Date(appointment.endTime);
+    const durationMs = end - start;
+    const durationHours = durationMs / (1000 * 60 * 60);
+    return durationHours * SLOT_HEIGHT;
+  };
+
+  const getAppointmentTopOffset = (appointment, timeSlot) => {
+    const appointmentStart = new Date(appointment.startTime);
+    const [slotHour] = timeSlot.split(':').map(Number);
+    const slotTime = new Date(appointmentStart);
+    slotTime.setHours(slotHour, 0, 0, 0);
+    
+    if (appointmentStart < slotTime) return 0;
+    
+    const offsetMs = appointmentStart - slotTime;
+    const offsetMinutes = offsetMs / (1000 * 60);
+    return (offsetMinutes / 60) * SLOT_HEIGHT;
   };
 
   const deleteAppointment = async (appointmentId) => {
     if (!confirm('Bu randevunu silmək istədiyinizdən əminsiniz?')) return;
-
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE}/appointments/${appointmentId}/${getToken()}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-
       if (response.ok) {
         await fetchAppointments();
         alert('Randevu uğurla silindi!');
@@ -427,24 +385,15 @@ export default function AdminCedvel() {
       alert('Bu masajist bu tarixdə bloklanıb!');
       return;
     }
-
     const appointment = isTimeSlotOccupied(masseurId, timeSlot);
     if (appointment) {
       alert('Bu vaxt aralığında randevu var!');
       return;
     }
-
     setSelectedSlot({ masseurId, timeSlot });
     setNewAppointment({
-      customer: '',
-      masseur: masseurId,
-      massageType: '',
-      duration: '',
-      price: 0,
-      advancePayment: {
-        amount: 0,
-        paymentMethod: 'cash'
-      }
+      customer: '', masseur: masseurId, massageType: '', duration: '', price: 0,
+      advancePayment: { amount: 0, paymentMethod: 'cash' }
     });
     setCustomerSearch('');
     setShowAddModal(true);
@@ -454,15 +403,8 @@ export default function AdminCedvel() {
     setShowAddModal(false);
     setSelectedSlot(null);
     setNewAppointment({
-      customer: '',
-      masseur: '',
-      massageType: '',
-      duration: '',
-      price: 0,
-      advancePayment: {
-        amount: 0,
-        paymentMethod: 'cash'
-      }
+      customer: '', masseur: '', massageType: '', duration: '', price: 0,
+      advancePayment: { amount: 0, paymentMethod: 'cash' }
     });
     setCustomerSearch('');
   };
@@ -481,16 +423,13 @@ export default function AdminCedvel() {
       alert('Zəhmət olmasa bütün məcburi sahələri doldurun!');
       return;
     }
-
     setLoading(true);
     try {
       const [hours, minutes] = selectedSlot.timeSlot.split(':').map(Number);
       const startTime = new Date(selectedDate);
       startTime.setHours(hours, minutes, 0, 0);
-      
       const endTime = new Date(startTime);
       endTime.setMinutes(endTime.getMinutes() + parseInt(newAppointment.duration));
-
       const appointmentData = {
         customer: newAppointment.customer,
         masseur: newAppointment.masseur,
@@ -502,16 +441,14 @@ export default function AdminCedvel() {
         price: newAppointment.price,
         status: 'scheduled',
         paymentMethod: 'cash',
-        createdBy:"68ca9d919e196ab4cd5e3b61"
+        createdBy: "68ca9d919e196ab4cd5e3b61"
       };
-
       if (newAppointment.advancePayment.amount > 0) {
         appointmentData.advancePayment = {
           amount: parseFloat(newAppointment.advancePayment.amount),
           paymentMethod: newAppointment.advancePayment.paymentMethod
         };
       }
-
       const response = await fetch(`${API_BASE}/admin/appointments/${getToken()}`, {
         method: 'POST',
         headers: {
@@ -520,7 +457,6 @@ export default function AdminCedvel() {
         },
         body: JSON.stringify(appointmentData)
       });
-
       if (response.ok) {
         await fetchAppointments();
         closeAddModal();
@@ -550,7 +486,6 @@ export default function AdminCedvel() {
             <h2 style={styles.branchSelectionTitle}>Filial Seçin</h2>
             <p style={styles.branchSelectionSubtitle}>Randevu cədvəlini görüntüləmək üçün filialı seçin</p>
           </div>
-          
           <div style={styles.branchList}>
             {branches.map(branch => (
               <button
@@ -574,29 +509,21 @@ export default function AdminCedvel() {
   return (
     <div style={styles.container}>
       {loading && <div style={styles.loadingOverlay}>Yüklənir...</div>}
-      
       <div style={styles.header}>
         <div style={styles.branchHeader}>
           <div style={styles.branchInfo}>
             <Building2 size={24} color="#667eea" />
-            <h1 style={styles.branchName}>
-              {selectedBranchData?.name}
-            </h1>
+            <h1 style={styles.branchName}>{selectedBranchData?.name}</h1>
           </div>
-          <button
-            onClick={() => setSelectedBranch('')}
-            style={styles.changeBranchBtn}
-          >
+          <button onClick={() => setSelectedBranch('')} style={styles.changeBranchBtn}>
             Filial Dəyiş
           </button>
         </div>
-
         <div style={styles.dateNavigation}>
           <button onClick={() => changeDate(-1)} style={styles.dateBtn}>
             <ChevronLeft size={20} />
             <span style={styles.dateBtnText}>Əvvəlki</span>
           </button>
-          
           <div style={styles.dateTitle}>
             <button 
               onClick={() => {
@@ -615,14 +542,10 @@ export default function AdminCedvel() {
                 })}
               </h2>
             </button>
-            
             {showCalendar && (
               <div ref={calendarRef} style={styles.calendarDropdown}>
                 <div style={styles.calendarHeader}>
-                  <button 
-                    onClick={() => changeCalendarMonth(-1)} 
-                    style={styles.calendarNavBtn}
-                  >
+                  <button onClick={() => changeCalendarMonth(-1)} style={styles.calendarNavBtn}>
                     <ChevronLeft size={18} />
                   </button>
                   <span style={styles.calendarMonthYear}>
@@ -631,43 +554,32 @@ export default function AdminCedvel() {
                       month: 'long'
                     })}
                   </span>
-                  <button 
-                    onClick={() => changeCalendarMonth(1)} 
-                    style={styles.calendarNavBtn}
-                  >
+                  <button onClick={() => changeCalendarMonth(1)} style={styles.calendarNavBtn}>
                     <ChevronRight size={18} />
                   </button>
-                  <button 
-                    onClick={() => setShowCalendar(false)} 
-                    style={styles.calendarCloseBtn}
-                  >
+                  <button onClick={() => setShowCalendar(false)} style={styles.calendarCloseBtn}>
                     <X size={18} />
                   </button>
                 </div>
-                
                 <div style={styles.calendarWeekdays}>
                   {['B.', 'B.e.', 'Ç.a.', 'Ç.', 'C.a.', 'C.', 'Ş.'].map(day => (
                     <div key={day} style={styles.weekdayLabel}>{day}</div>
                   ))}
                 </div>
-                
                 <div style={styles.calendarDays}>
                   {(() => {
                     const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(calendarMonth);
                     const days = [];
-                    
                     for (let i = 0; i < (startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1); i++) {
                       days.push(<div key={`empty-${i}`} style={styles.emptyDay} />);
                     }
-                    
                     for (let day = 1; day <= daysInMonth; day++) {
                       const isSelected = selectedDate.getDate() === day && 
                                         selectedDate.getMonth() === month && 
                                         selectedDate.getFullYear() === year;
-                      const isToday = new Date().getDate() === day && 
+                      const isTodayDay = new Date().getDate() === day && 
                                      new Date().getMonth() === month && 
                                      new Date().getFullYear() === year;
-                      
                       days.push(
                         <button
                           key={day}
@@ -675,46 +587,40 @@ export default function AdminCedvel() {
                           style={{
                             ...styles.calendarDay,
                             ...(isSelected ? styles.selectedDay : {}),
-                            ...(isToday && !isSelected ? styles.todayDay : {})
+                            ...(isTodayDay && !isSelected ? styles.todayDay : {})
                           }}
                         >
                           {day}
                         </button>
                       );
                     }
-                    
                     return days;
                   })()}
                 </div>
               </div>
             )}
           </div>
-             
           <button onClick={() => changeDate(1)} style={styles.dateBtn}>
             <span style={styles.dateBtnText}>Növbəti</span>
             <ChevronRight size={20} />
           </button>
         </div>
       </div>
-
       <div style={styles.masseursInfo}>
         <Users size={18} />
         <span>Masajistlər: {branchMasseurs.length}</span>
       </div>
-
       <div style={styles.scheduleContainer}>
         <div 
           style={{
             ...styles.scheduleGrid,
-            gridTemplateColumns: `100px repeat(${branchMasseurs.length}, 1fr)`
+            gridTemplateColumns: `120px repeat(${branchMasseurs.length}, minmax(200px, 1fr))`
           }}
         >
           <div style={styles.timeColumn}>Saat</div>
-          
           {branchMasseurs.map((masseur) => {
             const isBlocked = isMasseurBlocked(masseur._id);
             const blockInfo = getBlockInfo(masseur._id);
-            
             return (
               <div 
                 key={masseur._id} 
@@ -735,16 +641,13 @@ export default function AdminCedvel() {
                       </div>
                     )}
                   </div>
-                </div>
+                </div>  
                 {isBlocked && blockInfo && (
-                  <div style={styles.blockReason}>
-                    {blockInfo.reason}
-                  </div>
+                  <div style={styles.blockReason}>{blockInfo.reason}</div>
                 )}
               </div>
             );
           })}
-
           {hours.map((timeSlot) => (
             <div key={timeSlot} style={styles.scheduleRow}>
               <div style={{
@@ -753,7 +656,6 @@ export default function AdminCedvel() {
               }}>
                 <span style={styles.timeLabel}>{timeSlot}</span>
               </div>
-
               {branchMasseurs.map((masseur) => {
                 const isBlocked = isMasseurBlocked(masseur._id);
                 const appointment = isTimeSlotOccupied(masseur._id, timeSlot);
@@ -775,78 +677,88 @@ export default function AdminCedvel() {
                     key={`${masseur._id}-${timeSlot}`}
                     style={{
                       ...styles.timeSlot,
-                      backgroundColor: appointment ? '#e0f2fe' : '#ffffff',
-                      borderColor: appointment ? '#0284c7' : '#e5e7eb',
+                      backgroundColor: appointment ? 'transparent' : '#ffffff',
+                      borderColor: '#e5e7eb',
                       cursor: !appointment && !isBlocked ? 'pointer' : 'default',
-                      ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {})
+                      ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
+                      position: 'relative'
                     }}
                     onClick={() => !appointment && !isBlocked && openAddAppointmentModal(masseur._id, timeSlot)}
                   >
                     {appointment && isStartSlot ? (
-                      <div style={styles.appointmentCard}>
-                        <div style={styles.appointmentHeader}>
-                          <div style={styles.appointmentMainInfo}>
-                            <div style={styles.statusRow}>
+                      <div 
+                        style={{
+                          ...styles.appointmentCard,
+                          position: 'absolute',
+                          top: `${getAppointmentTopOffset(appointment, timeSlot)}px`,
+                          height: `${getAppointmentHeight(appointment)}px`,
+                          left: '2px',
+                          right: '2px',
+                          minHeight: '76px'
+                        }}
+                      >
+                        <div style={styles.appointmentContent}>
+                          <div style={styles.appointmentTopRow}>
+                            <span 
+                              style={{
+                                ...styles.statusBadge,
+                                backgroundColor: getStatusColor(appointment.status)
+                              }}
+                            >
+                              {getStatusName(appointment.status)}
+                            </span>
+                            <button 
+                              style={styles.deleteBtn} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteAppointment(appointment._id);
+                              }}
+                              title="Sil"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                          
+                          <div style={styles.customerName}>
+                            {appointment.customer?.name || appointment.customer || 'Ad yoxdur'}
+                          </div>
+                          
+                          <div style={styles.massageType}>
+                            {appointment.massageType?.name || appointment.massageType || 'Masaj növü'}
+                          </div>
+                          
+                          <div style={styles.appointmentTime}>
+                            {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
+                            {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                            <span style={styles.durationBadge}>({appointment.duration}dəq)</span>
+                          </div>
+                          
+                          <div style={styles.pricePaymentRow}>
+                            <span style={styles.appointmentPrice}>
+                              {appointment.price || 0} ₼
+                            </span>
+                            {appointment.paymentMethod && (
                               <span 
                                 style={{
-                                  ...styles.statusBadge,
-                                  backgroundColor: getStatusColor(appointment.status)
+                                  ...styles.paymentMethod,
+                                  color: getPaymentMethodColor(appointment.paymentMethod)
                                 }}
                               >
-                                {getStatusName(appointment.status)}
+                                {getPaymentMethodName(appointment.paymentMethod)}
                               </span>
-                            </div>
-                            <div style={styles.customerName}>
-                              {appointment.customer?.name || appointment.customer || 'Ad yoxdur'}
-                            </div>
-                            <div style={styles.massageType}>
-                              {appointment.massageType?.name || appointment.massageType || 'Masaj növü yoxdur'} 
-                              <span style={styles.duration}>({appointment.duration || 0}dəq)</span>
-                            </div>
-                            <div style={styles.appointmentTime}>
-                              {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
-                              {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                            <div style={styles.pricePaymentRow}>
-                              <span style={styles.appointmentPrice}>
-                                {appointment.price || 0} ₼
-                              </span>
-                              {appointment.paymentMethod && (
-                                <span 
-                                  style={{
-                                    ...styles.paymentMethod,
-                                    color: getPaymentMethodColor(appointment.paymentMethod)
-                                  }}
-                                >
-                                  {getPaymentMethodName(appointment.paymentMethod)}
-                                </span>
-                              )}
-                            </div>
-                            <div style={styles.receptionistRow}>
-                              <span style={styles.receptionistName}>
-                                {getReceptionistName(appointment.createdBy)}
-                              </span>
-                            </div>
+                            )}
                           </div>
-                          <button 
-                            style={styles.deleteBtn} 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteAppointment(appointment._id);
-                            }}
-                            title="Sil"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          
+                          <div style={styles.receptionistInfo}>
+                            {getReceptionistName(appointment.createdBy)}
+                          </div>
                         </div>
                       </div>
-                    ) : appointment ? (
-                      <div style={styles.continuationSlot} />
-                    ) : (
+                    ) : !appointment ? (
                       <div style={styles.emptySlot}>
                         <Plus size={16} color="#9ca3af" />
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
@@ -864,7 +776,6 @@ export default function AdminCedvel() {
                 <X size={20} />
               </button>
             </div>
-
             <div style={styles.modalBody}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Masajist</label>
@@ -875,7 +786,6 @@ export default function AdminCedvel() {
                   style={{ ...styles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                 />
               </div>
-
               <div style={styles.formGroup}>
                 <label style={styles.label}>Vaxt</label>
                 <input
@@ -885,7 +795,6 @@ export default function AdminCedvel() {
                   style={{ ...styles.input, backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                 />
               </div>
-
               <div style={styles.formGroup}>
                 <label style={styles.label}>Müştəri Axtar *</label>
                 <div style={styles.searchContainer}>
@@ -910,7 +819,7 @@ export default function AdminCedvel() {
                           }}
                           style={styles.customerItem}
                         >
-                          <div style={styles.customerName}>{customer.name}</div>
+                          <div style={styles.customerItemName}>{customer.name}</div>
                           <div style={styles.customerPhone}>{customer.phone}</div>
                         </div>
                       ))
@@ -920,7 +829,6 @@ export default function AdminCedvel() {
                   </div>
                 )}
               </div>
-
               <div style={styles.formGroup}>
                 <label style={styles.label}>Masaj Növü *</label>
                 <select
@@ -934,7 +842,6 @@ export default function AdminCedvel() {
                   ))}
                 </select>
               </div>
-
               {newAppointment.massageType && (
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Müddət *</label>
@@ -964,17 +871,14 @@ export default function AdminCedvel() {
                   </select>
                 </div>
               )}
-
               {newAppointment.price > 0 && (
                 <>
                   <div style={styles.priceDisplay}>
                     <span>Qiymət:</span>
                     <strong>{newAppointment.price} ₼</strong>
                   </div>
-
                   <div style={styles.advancePaymentSection}>
                     <h4 style={styles.sectionTitle}>Avans Ödənişi (İstəyə bağlı)</h4>
-                    
                     <div style={styles.formGroup}>
                       <label style={styles.label}>Avans məbləği</label>
                       <input
@@ -993,7 +897,6 @@ export default function AdminCedvel() {
                         placeholder="0"
                       />
                     </div>
-
                     {newAppointment.advancePayment.amount > 0 && (
                       <div style={styles.formGroup}>
                         <label style={styles.label}>Ödəniş üsulu</label>
@@ -1018,7 +921,6 @@ export default function AdminCedvel() {
                 </>
               )}
             </div>
-
             <div style={styles.modalFooter}>
               <button onClick={closeAddModal} style={styles.cancelBtn}>
                 Ləğv et
@@ -1320,60 +1222,63 @@ const styles = {
   },
   scheduleGrid: {
     display: 'grid',
-    minWidth: '800px'
+    minWidth: '900px'
   },
   timeColumn: {
     background: '#f8fafc',
-    padding: '10px',
+    padding: '12px',
     fontWeight: '600',
-    borderRight: '1px solid #e5e7eb',
+    borderRight: '2px solid #e5e7eb',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#374151',
-    fontSize: '12px',
+    fontSize: '13px',
     position: 'sticky',
     left: 0,
     zIndex: 2
   },
   masseurHeader: {
     background: '#f8fafc',
-    padding: '10px',
+    padding: '12px',
     borderRight: '1px solid #e5e7eb',
-    borderBottom: '2px solid #e5e7eb'
+    borderBottom: '2px solid #e5e7eb',
+    minHeight: '70px'
   },
   masseurInfo: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '6px'
+    gap: '8px'
   },
   masseurName: {
-    fontSize: '13px',
+    fontSize: '14px',
     fontWeight: '600',
     color: '#374151',
-    wordBreak: 'break-word'
+    wordBreak: 'break-word',
+    lineHeight: '1.3'
   },
   masseurRole: {
-    fontSize: '10px',
-    color: '#6b7280'
+    fontSize: '11px',
+    color: '#6b7280',
+    marginTop: '2px'
   },
   blockedBadge: {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
-    fontSize: '9px',
+    fontSize: '10px',
     color: '#ef4444',
     fontWeight: '600',
     marginTop: '4px',
     background: '#fee2e2',
-    padding: '2px 6px',
+    padding: '3px 6px',
     borderRadius: '4px',
     width: 'fit-content'
   },
   blockReason: {
-    fontSize: '9px',
+    fontSize: '10px',
     color: '#6b7280',
-    marginTop: '4px',
+    marginTop: '6px',
     fontStyle: 'italic'
   },
   scheduleRow: {
@@ -1381,13 +1286,13 @@ const styles = {
   },
   timeCell: {
     background: '#f8fafc',
-    padding: '6px',
-    borderRight: '1px solid #e5e7eb',
+    padding: '8px',
+    borderRight: '2px solid #e5e7eb',
     borderBottom: '1px solid #f3f4f6',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '50px',
+    minHeight: '180px',
     position: 'sticky',
     left: 0,
     zIndex: 1
@@ -1398,32 +1303,33 @@ const styles = {
     borderBottom: '2px solid #ef4444'
   },
   timeLabel: {
-    fontSize: '11px',
+    fontSize: '12px',
     color: '#374151',
-    fontWeight: '500'
+    fontWeight: '600'
   },
   timeSlot: {
     borderRight: '1px solid #e5e7eb',
     borderBottom: '1px solid #f3f4f6',
-    minHeight: '50px',
+    minHeight: '180px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative'
+    position: 'relative',
+    transition: 'background 0.2s ease'
   },
   currentTimeSlot: {
     borderTop: '2px solid #ef4444',
     borderBottom: '2px solid #ef4444'
   },
   blockedSlot: {
-    background: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px)',
+    background: 'repeating-linear-gradient(45deg, #f9fafb, #f9fafb 10px, #f3f4f6 10px, #f3f4f6 20px)',
     borderRight: '1px solid #d1d5db',
     borderBottom: '1px solid #d1d5db',
-    minHeight: '50px',
+    minHeight: '180px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.6
+    opacity: 0.7
   },
   emptySlot: {
     display: 'flex',
@@ -1431,105 +1337,102 @@ const styles = {
     justifyContent: 'center',
     width: '100%',
     height: '100%',
-    opacity: 0.7
-  },
-  continuationSlot: {
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
-    border: '1px solid #0284c7',
-    opacity: 0.3
+    opacity: '0.5',
+    transition: 'opacity 0.2s ease'
   },
   appointmentCard: {
-    width: '100%',
-    height: '100%',
-    padding: '8px',
+    padding: '10px',
     display: 'flex',
     flexDirection: 'column',
-    background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
-    borderRadius: '4px',
-    border: '2px solid #0284c7',
-    boxShadow: '0 2px 4px rgba(2, 132, 199, 0.15)'
+    background: 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)',
+    borderRadius: '8px',
+    border: '2px solid #3b82f6',
+    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
+    overflow: 'hidden'
   },
-  appointmentHeader: {
+  appointmentContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    height: '100%'
+  },
+  appointmentTopRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: '8px'
-  },
-  appointmentMainInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    flex: 1
-  },
-  statusRow: {
-    marginBottom: '2px'
+    marginBottom: '6px'
   },
   statusBadge: {
-    fontSize: '8px',
-    fontWeight: '600',
+    fontSize: '10px',
+    fontWeight: '700',
     color: 'white',
-    padding: '3px 6px',
-    borderRadius: '4px',
-    textTransform: 'capitalize',
-    display: 'inline-block'
+    padding: '4px 10px',
+    borderRadius: '5px',
+    textTransform: 'uppercase',
+    display: 'inline-block',
+    letterSpacing: '0.3px'
   },
   customerName: {
-    fontSize: '13px',
+    fontSize: '16px',
     fontWeight: '700',
-    color: '#1e293b'
+    color: '#0f172a',
+    lineHeight: '1.3',
+    wordBreak: 'break-word'
   },
   massageType: {
-    fontSize: '11px',
+    fontSize: '14px',
     color: '#475569',
-    fontWeight: '500'
-  },
-  duration: {
-    fontSize: '10px',
-    color: '#64748b',
-    marginLeft: '4px'
+    fontWeight: '500',
+    lineHeight: '1.3'
   },
   appointmentTime: {
-    fontSize: '10px',
-    fontWeight: '600',
-    color: '#0284c7'
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#0284c7',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginTop: '2px'
+  },
+  durationBadge: {
+    fontSize: '11px',
+    color: '#64748b',
+    fontWeight: '600'
   },
   pricePaymentRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: '4px',
-    paddingTop: '4px',
-    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
+    marginTop: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid rgba(59, 130, 246, 0.2)'
   },
   appointmentPrice: {
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '700',
     color: '#059669'
   },
   paymentMethod: {
-    fontSize: '9px',
-    fontWeight: '600',
-    textTransform: 'uppercase'
+    fontSize: '11px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px'
   },
-  receptionistRow: {
-    marginTop: '4px',
-    paddingTop: '4px',
-    borderTop: '1px solid rgba(2, 132, 199, 0.2)'
-  },
-  receptionistName: {
-    fontSize: '9px',
-    color: '#475569',
+  receptionistInfo: {
+    fontSize: '11px',
+    color: '#64748b',
     fontWeight: '500',
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    marginTop: '6px',
+    paddingTop: '6px',
+    borderTop: '1px solid rgba(59, 130, 246, 0.15)'
   },
   deleteBtn: {
     background: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
-    padding: '4px',
+    padding: '5px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -1654,9 +1557,15 @@ const styles = {
     borderBottom: '1px solid #f3f4f6',
     transition: 'background 0.2s ease'
   },
+  customerItemName: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#1e293b'
+  },
   customerPhone: {
     fontSize: '12px',
-    color: '#64748b'
+    color: '#64748b',
+    marginTop: '2px'
   },
   noResults: {
     padding: '12px',
