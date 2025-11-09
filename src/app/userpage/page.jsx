@@ -12,14 +12,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Gift,
-  LogOut
+  LogOut,
+  History  // ✅ YENİ ICON
 } from 'lucide-react';
 import Hesabat from '../userpage/hesabat.jsx';
 import Cedvel from '../userpage/cedvel.jsx';
 import GiftCardManager from './GiftCardManager.jsx';
 import WeeklyBlockManager from './WeeklyBlockManager.jsx';
-import Cookies from 'js-cookie';
 import CompleteAppointment from './completePaymentModal.jsx';
+import CustomerHistory from './CustomerHistory.jsx';  // ✅ YENİ COMPONENT
+import Cookies from 'js-cookie';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://thaiback.onrender.com/api';
 
@@ -59,12 +61,19 @@ export default function Sidebar() {
      label: 'Randevulari tamamla',
      icon: Grid3X3,
      message: 'Salam! Bu odenis qeyd etme bölməsidir.'
+   },
+   // ✅ YENİ MENU ITEM
+   {
+     id: 'customer-history',
+     label: 'Müştəri Tarixçəsi',
+     icon: History,
+     message: 'Müştərilərin əvvəlki randevularını görün'
    }
   ];
-const getToken = () => {
+
+  const getToken = () => {
     return Cookies.get('authToken');
   };
-
 
   // Masajistləri çək
   const fetchMasseurs = async () => {
@@ -139,10 +148,15 @@ const getToken = () => {
     if (activeItem === 'blockeddays') {
       return <WeeklyBlockManager masseurs={masseurs} loading={loading} />;
     }
-     if (activeItem === 'complete') {
+    
+    if (activeItem === 'complete') {
       return <CompleteAppointment />;
     }
-  
+    
+    // ✅ YENİ - Müştəri Tarixçəsi
+    if (activeItem === 'customer-history') {
+      return <CustomerHistory />;
+    }
   
     return (
       <div style={styles.content}>

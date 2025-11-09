@@ -167,6 +167,8 @@ export default function AdminCedvel() {
       );
       if (response.ok) {
         const data = await response.json();
+        console.log(data);
+        
         setAppointments(data);
       }
     } catch (error) {

@@ -70,6 +70,8 @@ export default function Hesabat() {
 
       if (response.ok) {
         const appointments = await response.json();
+        console.log(appointments);
+        
         const completedAppointments = appointments.filter(apt => apt.status === 'completed');
         
         setGelirler(completedAppointments.map(apt => {
