@@ -27,7 +27,7 @@ export default function AdminCedvel() {
     advancePayment: { amount: 0, paymentMethod: 'cash' }
   });
 
-  const SLOT_HEIGHT = 180; // px per hour
+  const SLOT_HEIGHT = 240; // px per hour
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -324,12 +324,12 @@ export default function AdminCedvel() {
     const masseurAppointments = getMasseurAppointments(masseurId);
     return masseurAppointments.find(appointment => {
       const appointmentStart = new Date(appointment.startTime);
-      const [slotHour] = time.split(':').map(Number);
-      const slotTime = new Date(appointmentStart);
-      slotTime.setHours(slotHour, 0, 0, 0);
-      const slotEndTime = new Date(slotTime);
-      slotEndTime.setHours(slotEndTime.getHours() + 1);
-      return appointmentStart >= slotTime && appointmentStart < slotEndTime;
+      const [slotHour, slotMinute] = time.split(':').map(Number);
+      const startHour = appointmentStart.getHours();
+      const startMinute = appointmentStart.getMinutes();
+      
+      // Randevunun başladığı saatdə göstər
+      return startHour === slotHour && startMinute === slotMinute;
     });
   };
 
@@ -696,7 +696,7 @@ export default function AdminCedvel() {
                           height: `${getAppointmentHeight(appointment)}px`,
                           left: '2px',
                           right: '2px',
-                          minHeight: '76px'
+                          minHeight: '55px'
                         }}
                       >
                         <div style={styles.appointmentContent}>
@@ -725,9 +725,11 @@ export default function AdminCedvel() {
                             {appointment.customer?.name || appointment.customer || 'Ad yoxdur'}
                           </div>
                           
-                          <div style={styles.massageType}>
-                            {appointment.massageType?.name || appointment.massageType || 'Masaj növü'}
-                          </div>
+                          {appointment.massageType && (
+                            <div style={styles.massageType}>
+                              {appointment.massageType?.name || appointment.massageType}
+                            </div>
+                          )}
                           
                           <div style={styles.appointmentTime}>
                             {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
@@ -1294,7 +1296,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '180px',
+    minHeight: '240px',
     position: 'sticky',
     left: 0,
     zIndex: 1
@@ -1312,7 +1314,7 @@ const styles = {
   timeSlot: {
     borderRight: '1px solid #e5e7eb',
     borderBottom: '1px solid #f3f4f6',
-    minHeight: '180px',
+    minHeight: '240px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1327,7 +1329,7 @@ const styles = {
     background: 'repeating-linear-gradient(45deg, #f9fafb, #f9fafb 10px, #f3f4f6 10px, #f3f4f6 20px)',
     borderRight: '1px solid #d1d5db',
     borderBottom: '1px solid #d1d5db',
-    minHeight: '180px',
+    minHeight: '240px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1343,7 +1345,7 @@ const styles = {
     transition: 'opacity 0.2s ease'
   },
   appointmentCard: {
-    padding: '10px',
+    padding: '6px',
     display: 'flex',
     flexDirection: 'column',
     background: 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)',
@@ -1355,49 +1357,59 @@ const styles = {
   appointmentContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
-    height: '100%'
+    gap: '3px',
+    height: '100%',
+    fontSize: '12px'
   },
   appointmentTopRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '6px'
+    marginBottom: '3px'
   },
   statusBadge: {
-    fontSize: '10px',
+    fontSize: '9px',
     fontWeight: '700',
     color: 'white',
-    padding: '4px 10px',
-    borderRadius: '5px',
+    padding: '2px 6px',
+    borderRadius: '4px',
     textTransform: 'uppercase',
     display: 'inline-block',
     letterSpacing: '0.3px'
   },
   customerName: {
-    fontSize: '16px',
+    fontSize: '12px',
     fontWeight: '700',
     color: '#0f172a',
-    lineHeight: '1.3',
-    wordBreak: 'break-word'
+    lineHeight: '1.2',
+    wordBreak: 'break-word',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    display: '-webkit-box',
+    WebkitLineClamp: 1,
+    WebkitBoxOrient: 'vertical'
   },
   massageType: {
-    fontSize: '14px',
+    fontSize: '11px',
     color: '#475569',
     fontWeight: '500',
-    lineHeight: '1.3'
+    lineHeight: '1.2',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
   appointmentTime: {
-    fontSize: '13px',
+    fontSize: '10px',
     fontWeight: '700',
     color: '#0284c7',
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
-    marginTop: '2px'
+    gap: '3px',
+    marginTop: '1px',
+    flexWrap: 'wrap'
   },
   durationBadge: {
-    fontSize: '11px',
+    fontSize: '9px',
     color: '#64748b',
     fontWeight: '600'
   },
@@ -1405,29 +1417,35 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: '8px',
-    paddingTop: '8px',
-    borderTop: '1px solid rgba(59, 130, 246, 0.2)'
+    marginTop: '3px',
+    paddingTop: '3px',
+    borderTop: '1px solid rgba(59, 130, 246, 0.2)',
+    gap: '6px'
   },
   appointmentPrice: {
-    fontSize: '15px',
+    fontSize: '12px',
     fontWeight: '700',
-    color: '#059669'
+    color: '#059669',
+    whiteSpace: 'nowrap'
   },
   paymentMethod: {
-    fontSize: '11px',
+    fontSize: '9px',
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: '0.3px'
+    letterSpacing: '0.3px',
+    whiteSpace: 'nowrap'
   },
   receptionistInfo: {
-    fontSize: '11px',
+    fontSize: '9px',
     color: '#64748b',
     fontWeight: '500',
     fontStyle: 'italic',
-    marginTop: '6px',
-    paddingTop: '6px',
-    borderTop: '1px solid rgba(59, 130, 246, 0.15)'
+    marginTop: '3px',
+    paddingTop: '3px',
+    borderTop: '1px solid rgba(59, 130, 246, 0.15)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
   deleteBtn: {
     background: '#ef4444',
