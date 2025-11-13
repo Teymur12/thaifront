@@ -105,7 +105,6 @@ export default function UserLogin() {
           return;
         }
         
-        console.log('Login successful:', data);
       } else {
         setError(data.message || 'Giriş uğursuz oldu');
       }

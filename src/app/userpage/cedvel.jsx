@@ -523,7 +523,7 @@ export default function Cedvel() {
     });
   };
 
-  const addAppointment = async () => {
+ const addAppointment = async () => {
     if (!formData.customer || !formData.masseur || !formData.massageType || !formData.duration) {
       alert('Zəhmət olmasa bütün sahələri doldurun!');
       return;
@@ -544,6 +544,21 @@ export default function Cedvel() {
       if (isNaN(startTime.getTime())) {
         alert('Başlanğıc vaxtı səhvdir!');
         return;
+      }
+      
+      // Həftənin günü yoxlanışı
+      const dayOfWeek = startTime.getDay();
+      const weekDays = ['B.e', 'Ç.a', 'Ç', 'C.a', 'C', 'Ş', 'B'];
+      const dayName = weekDays[dayOfWeek];
+      
+      // Cümə (4), Şənbə (5), Bazar (6) - həftə sonu günləri
+      if (dayOfWeek === 4 || dayOfWeek === 5 || dayOfWeek === 6) {
+        
+        // Beh ödənişi yoxlanışı
+        if (!showAdvancePayment || !advanceAmount || parseFloat(advanceAmount) <= 0) {
+          alert(`${dayName} günü randevuları üçün beh ödənişi mütləqdir!`);
+          return;
+        }
       }
       
       const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));

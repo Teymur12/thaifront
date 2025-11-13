@@ -112,7 +112,6 @@ export default function AdminLogin() {
           return;
         }
         
-        console.log('Login successful:', data);
       } else {
         setError(data.message || 'Giriş uğursuz oldu');
       }

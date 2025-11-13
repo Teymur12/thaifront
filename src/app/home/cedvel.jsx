@@ -167,8 +167,6 @@ export default function AdminCedvel() {
       );
       if (response.ok) {
         const data = await response.json();
-        console.log(data);
-        
         setAppointments(data);
       }
     } catch (error) {
@@ -324,12 +322,11 @@ export default function AdminCedvel() {
     const masseurAppointments = getMasseurAppointments(masseurId);
     return masseurAppointments.find(appointment => {
       const appointmentStart = new Date(appointment.startTime);
-      const [slotHour, slotMinute] = time.split(':').map(Number);
+      const [slotHour] = time.split(':').map(Number);
       const startHour = appointmentStart.getHours();
-      const startMinute = appointmentStart.getMinutes();
       
-      // Randevunun başladığı saatdə göstər
-      return startHour === slotHour && startMinute === slotMinute;
+      // Randevunun başladığı saat aralığında göstər
+      return startHour === slotHour;
     });
   };
 
