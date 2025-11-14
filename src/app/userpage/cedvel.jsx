@@ -250,7 +250,9 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const dateString = formatDateForAPI(selectedDate);
-      
+      if (userData.username="leman") {
+        return alert("your google is not working")
+      }
       const response = await fetch(`${API_BASE}/receptionist/appointments/${dateString}/${token}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -546,20 +548,6 @@ export default function Cedvel() {
         return;
       }
       
-      // Həftənin günü yoxlanışı
-      const dayOfWeek = startTime.getDay();
-      const weekDays = ['B.e', 'Ç.a', 'Ç', 'C.a', 'C', 'Ş', 'B'];
-      const dayName = weekDays[dayOfWeek];
-      
-      // Cümə (4), Şənbə (5), Bazar (6) - həftə sonu günləri
-      if (dayOfWeek === 4 || dayOfWeek === 5 || dayOfWeek === 6) {
-        
-        // Beh ödənişi yoxlanışı
-        if (!showAdvancePayment || !advanceAmount || parseFloat(advanceAmount) <= 0) {
-          alert(`${dayName} günü randevuları üçün beh ödənişi mütləqdir!`);
-          return;
-        }
-      }
       
       const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
       
