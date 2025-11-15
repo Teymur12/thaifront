@@ -64,9 +64,7 @@ export default function Hesabat() {
   const fetchAppointments = async () => {
     try {
       const token = getToken();
-      if (userData.username="leman") {
-        return alert("your google is not working")
-      }
+    
       const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedDate}/${token}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
