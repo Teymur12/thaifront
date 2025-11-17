@@ -108,7 +108,7 @@ export default function Cedvel() {
     return Cookies.get('authToken');
   };
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     if (!mounted) return;
@@ -250,9 +250,7 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const dateString = formatDateForAPI(selectedDate);
-      if (userData.username="leman") {
-        return alert("your google is not working")
-      }
+     
       const response = await fetch(`${API_BASE}/receptionist/appointments/${dateString}/${token}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -525,103 +523,160 @@ export default function Cedvel() {
     });
   };
 
- const addAppointment = async () => {
-    if (!formData.customer || !formData.masseur || !formData.massageType || !formData.duration) {
-      alert('Zəhmət olmasa bütün sahələri doldurun!');
+const addAppointment = async () => {
+  if (!formData.customer || !formData.masseur || !formData.massageType || !formData.duration) {
+    alert('Zəhmət olmasa bütün sahələri doldurun!');
+    return;
+  }
+
+  if (!userBranch?._id) {
+    alert('Filial məlumatı tapılmadı!');
+    return;
+  }
+
+  try {
+    const token = getToken();
+    const [hour, minute] = selectedSlot.time.split(':');
+    
+    const startTime = new Date(selectedDate);
+    startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
+    
+    if (isNaN(startTime.getTime())) {
+      alert('Başlanğıc vaxtı səhvdir!');
+      return;
+    }
+    
+    const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
+    
+    if (isNaN(endTime.getTime())) {
+      alert('Bitmə vaxtı hesablanmadı!');
       return;
     }
 
-    if (!userBranch?._id) {
-      alert('Filial məlumatı tapılmadı!');
-      return;
-    }
+    // ✅ Endirim hesabla (yalnız 68d2693d8b8c7e6256a90bc8 filialı üçün)
+    let finalPrice = formData.price;
+    let discountInfo = null;
 
-    try {
-      const token = getToken();
-      const [hour, minute] = selectedSlot.time.split(':');
+    const SPECIAL_BRANCH_ID = '68d2693d8b8c7e6256a90bc8';
+    if (userBranch._id === SPECIAL_BRANCH_ID) {
+      const dayOfWeek = startTime.getDay(); // 0=Bazar, 6=Şənbə
+      let discountPercent = 0;
       
-      const startTime = new Date(selectedDate);
-      startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
-      
-      if (isNaN(startTime.getTime())) {
-        alert('Başlanğıc vaxtı səhvdir!');
-        return;
+      // Həftə sonu: 10% endirim
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        discountPercent = 10;
+      } 
+      // Həftə içi: 25% endirim
+      else {
+        discountPercent = 25;
       }
       
+      const originalPrice = formData.price;
+      const discountAmount = (originalPrice * discountPercent) / 100;
+      const priceAfterDiscount = originalPrice - discountAmount;
       
-      const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
-      
-      if (isNaN(endTime.getTime())) {
-        alert('Bitmə vaxtı hesablanmadı!');
-        return;
+      // ✅ Yuvarlaqlama:
+      // 10% endirim → ən yaxın rəqəmə (round)
+      // 25% endirim → yuxarı (ceil)
+      if (discountPercent === 10) {
+        finalPrice = Math.round(priceAfterDiscount);
+      } else if (discountPercent === 25) {
+        finalPrice = Math.ceil(priceAfterDiscount);
       }
-
-      const appointmentData = {
-        customer: formData.customer,
-        masseur: formData.masseur,
-        branch: userBranch._id,
-        massageType: formData.massageType,
-        duration: parseInt(formData.duration),
-        price: formData.price,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        status: 'scheduled',
-        notes: formData.notes || '',
-        createdBy: userData.id
+      
+      discountInfo = {
+        percent: discountPercent,
+        amount: originalPrice - finalPrice, // Real endirim məbləği
+        originalPrice: originalPrice,
+        reason: dayOfWeek === 0 || dayOfWeek === 6 ? 'Həftə sonu endirimi' : 'Həftə içi endirimi'
       };
-
-      if (showAdvancePayment && advanceAmount && advanceMethod) {
-        appointmentData.advancePayment = {
-          amount: parseFloat(advanceAmount),
-          paymentMethod: advanceMethod
-        };
-      }
-
-      const response = await fetch(`${API_BASE}/receptionist/appointments/${token}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(appointmentData)
-      });
-
-      if (response.ok) {
-        const newAppointment = await response.json();
-        
-        if (formData.giftCard) {
-          try {
-            await fetch(`${API_BASE}/gift-cards/use/${formData.giftCard.cardNumber}/${token}`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                appointmentId: newAppointment._id,
-                usedBy: formData.customer
-              })
-            });
-          } catch (giftCardError) {
-            console.error('Gift card usage error:', giftCardError);
-            alert('Randevu yaradıldı, ancaq hədiyyə kartı qeyd edilmədi');
-          }
-        }
-
-        await fetchDayAppointments();
-        resetForm();
-        alert(showAdvancePayment && advanceAmount ? 
-          `Randevu yaradıldı və ${advanceAmount} AZN beh qeydə alındı!` : 
-          'Randevu uğurla əlavə edildi!');
-      } else {
-        const error = await response.json();
-        alert('Xəta: ' + (error.message || 'Randevu əlavə edilmədi'));
-      }
-    } catch (error) {
-      console.error('Add appointment error:', error);
-      alert('Randevu əlavə edərkən xəta baş verdi: ' + error.message);
     }
-  };
+
+    const appointmentData = {
+      customer: formData.customer,
+      masseur: formData.masseur,
+      branch: userBranch._id,
+      massageType: formData.massageType,
+      duration: parseInt(formData.duration),
+      price: finalPrice, // ✅ Endirimlə qiymət göndərilir
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      status: 'scheduled',
+      notes: formData.notes || '',
+      createdBy: userData.id
+    };
+
+    // Endirim məlumatını backend-ə göndər (saxlanılsın)
+    if (discountInfo) {
+      appointmentData.discount = discountInfo;
+    }
+
+    if (showAdvancePayment && advanceAmount && advanceMethod) {
+      appointmentData.advancePayment = {
+        amount: parseFloat(advanceAmount),
+        paymentMethod: advanceMethod
+      };
+    }
+
+    const response = await fetch(`${API_BASE}/receptionist/appointments/${token}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(appointmentData)
+    });
+
+    if (response.ok) {
+      const newAppointment = await response.json();
+      
+      if (formData.giftCard) {
+        try {
+          await fetch(`${API_BASE}/gift-cards/use/${formData.giftCard.cardNumber}/${token}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              appointmentId: newAppointment._id,
+              usedBy: formData.customer
+            })
+          });
+        } catch (giftCardError) {
+          console.error('Gift card usage error:', giftCardError);
+          alert('Randevu yaradıldı, ancaq hədiyyə kartı qeyd edilmədi');
+        }
+      }
+
+      await fetchDayAppointments();
+      resetForm();
+      
+      // ✅ Endirim məlumatı ilə uğurlu mesaj
+      let successMessage = 'Randevu uğurla əlavə edildi!';
+      
+      if (discountInfo) {
+        successMessage += `\n\n📊 Qiymət Məlumatı:`;
+        successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
+        successMessage += `\n• Endirim (${discountInfo.percent}%): -${discountInfo.amount.toFixed(2)} AZN`;
+        successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
+        successMessage += `\n• Səbəb: ${discountInfo.reason}`;
+      }
+      
+      if (showAdvancePayment && advanceAmount) {
+        successMessage += `\n\n💰 Beh: ${advanceAmount} AZN qeydə alındı`;
+      }
+      
+      alert(successMessage);
+    } else {
+      const error = await response.json();
+      alert('Xəta: ' + (error.message || 'Randevu əlavə edilmədi'));
+    }
+  } catch (error) {
+    console.error('Add appointment error:', error);
+    alert('Randevu əlavə edərkən xəta baş verdi: ' + error.message);
+  }
+};
 
 const completeAppointment = async (paymentMethod) => {
   if (!selectedAppointment) return;
