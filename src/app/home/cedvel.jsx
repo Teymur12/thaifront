@@ -27,7 +27,7 @@ export default function AdminCedvel() {
     advancePayment: { amount: 0, paymentMethod: 'cash' }
   });
 
-  const SLOT_HEIGHT = 240; // px per hour
+  const SLOT_HEIGHT = 240;
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -167,6 +167,7 @@ export default function AdminCedvel() {
       );
       if (response.ok) {
         const data = await response.json();
+        console.log(data);
         setAppointments(data);
       }
     } catch (error) {
@@ -324,9 +325,10 @@ export default function AdminCedvel() {
       const appointmentStart = new Date(appointment.startTime);
       const [slotHour] = time.split(':').map(Number);
       const startHour = appointmentStart.getHours();
+      const startMinute = appointmentStart.getMinutes();
       
-      // Randevunun başladığı saat aralığında göstər
-      return startHour === slotHour;
+      // Yalnız randevunun BAŞLADIĞI saat aralığında true qaytar
+      return startHour === slotHour && startMinute >= 0;
     });
   };
 
@@ -657,8 +659,8 @@ export default function AdminCedvel() {
               </div>
               {branchMasseurs.map((masseur) => {
                 const isBlocked = isMasseurBlocked(masseur._id);
-                const appointment = isTimeSlotOccupied(masseur._id, timeSlot);
-                const isStartSlot = isAppointmentStart(masseur._id, timeSlot);
+                const occupiedAppointment = isTimeSlotOccupied(masseur._id, timeSlot);
+                const startAppointment = isAppointmentStart(masseur._id, timeSlot);
                 
                 if (isBlocked) {
                   return (
@@ -671,26 +673,26 @@ export default function AdminCedvel() {
                   );
                 }
                 
-                return (
-                  <div 
-                    key={`${masseur._id}-${timeSlot}`}
-                    style={{
-                      ...styles.timeSlot,
-                      backgroundColor: appointment ? 'transparent' : '#ffffff',
-                      borderColor: '#e5e7eb',
-                      cursor: !appointment && !isBlocked ? 'pointer' : 'default',
-                      ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
-                      position: 'relative'
-                    }}
-                    onClick={() => !appointment && !isBlocked && openAddAppointmentModal(masseur._id, timeSlot)}
-                  >
-                    {appointment && isStartSlot ? (
+                // Əgər bu slotda randevu başlayırsa, randevu kartını göstər
+                if (startAppointment) {
+                  return (
+                    <div 
+                      key={`${masseur._id}-${timeSlot}`}
+                      style={{
+                        ...styles.timeSlot,
+                        backgroundColor: 'transparent',
+                        borderColor: '#e5e7eb',
+                        cursor: 'default',
+                        ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
+                        position: 'relative'
+                      }}
+                    >
                       <div 
                         style={{
                           ...styles.appointmentCard,
                           position: 'absolute',
-                          top: `${getAppointmentTopOffset(appointment, timeSlot)}px`,
-                          height: `${getAppointmentHeight(appointment)}px`,
+                          top: `${getAppointmentTopOffset(startAppointment, timeSlot)}px`,
+                          height: `${getAppointmentHeight(startAppointment)}px`,
                           left: '2px',
                           right: '2px',
                           minHeight: '55px'
@@ -701,16 +703,16 @@ export default function AdminCedvel() {
                             <span 
                               style={{
                                 ...styles.statusBadge,
-                                backgroundColor: getStatusColor(appointment.status)
+                                backgroundColor: getStatusColor(startAppointment.status)
                               }}
                             >
-                              {getStatusName(appointment.status)}
+                              {getStatusName(startAppointment.status)}
                             </span>
                             <button 
                               style={styles.deleteBtn} 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                deleteAppointment(appointment._id);
+                                deleteAppointment(startAppointment._id);
                               }}
                               title="Sil"
                             >
@@ -719,47 +721,82 @@ export default function AdminCedvel() {
                           </div>
                           
                           <div style={styles.customerName}>
-                            {appointment.customer?.name || appointment.customer || 'Ad yoxdur'}
+                            {startAppointment.customer?.name || startAppointment.customer || 'Ad yoxdur'}
                           </div>
                           
-                          {appointment.massageType && (
+                          {startAppointment.massageType && (
                             <div style={styles.massageType}>
-                              {appointment.massageType?.name || appointment.massageType}
+                              {startAppointment.massageType?.name || startAppointment.massageType}
                             </div>
                           )}
                           
                           <div style={styles.appointmentTime}>
-                            {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
-                            {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            <span style={styles.durationBadge}>({appointment.duration}dəq)</span>
+                            {new Date(startAppointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
+                            {new Date(startAppointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                            <span style={styles.durationBadge}>({startAppointment.duration}dəq)</span>
                           </div>
                           
                           <div style={styles.pricePaymentRow}>
                             <span style={styles.appointmentPrice}>
-                              {appointment.price || 0} ₼
+                              {startAppointment.price || 0} ₼
                             </span>
-                            {appointment.paymentMethod && (
+                            {startAppointment.paymentMethod && (
                               <span 
                                 style={{
                                   ...styles.paymentMethod,
-                                  color: getPaymentMethodColor(appointment.paymentMethod)
+                                  color: getPaymentMethodColor(startAppointment.paymentMethod)
                                 }}
                               >
-                                {getPaymentMethodName(appointment.paymentMethod)}
+                                {getPaymentMethodName(startAppointment.paymentMethod)}
                               </span>
                             )}
                           </div>
                           
                           <div style={styles.receptionistInfo}>
-                            {getReceptionistName(appointment.createdBy)}
+                            {getReceptionistName(startAppointment.createdBy)}
                           </div>
                         </div>
                       </div>
-                    ) : !appointment ? (
-                      <div style={styles.emptySlot}>
-                        <Plus size={16} color="#9ca3af" />
-                      </div>
-                    ) : null}
+                    </div>
+                  );
+                }
+                
+                // Əgər bu slotda randevu davam edirse (amma başlamır), boş slot göstər
+                if (occupiedAppointment) {
+                  return (
+                    <div 
+                      key={`${masseur._id}-${timeSlot}`}
+                      style={{
+                        ...styles.timeSlot,
+                        backgroundColor: 'transparent',
+                        borderColor: '#e5e7eb',
+                        cursor: 'default',
+                        ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Boş - randevu davam edir */}
+                    </div>
+                  );
+                }
+                
+                // Tamamilə boş slot - yeni randevu əlavə edilə bilər
+                return (
+                  <div 
+                    key={`${masseur._id}-${timeSlot}`}
+                    style={{
+                      ...styles.timeSlot,
+                      backgroundColor: '#ffffff',
+                      borderColor: '#e5e7eb',
+                      cursor: 'pointer',
+                      ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
+                      position: 'relative'
+                    }}
+                    onClick={() => openAddAppointmentModal(masseur._id, timeSlot)}
+                  >
+                    <div style={styles.emptySlot}>
+                      <Plus size={16} color="#9ca3af" />
+                    </div>
                   </div>
                 );
               })}
@@ -1645,4 +1682,4 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s ease'
   }
-};
+}
