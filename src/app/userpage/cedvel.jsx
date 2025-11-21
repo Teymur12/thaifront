@@ -595,7 +595,7 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const formData = new FormData();
-      formData.append('file', receiptModalFile);
+      formData.append('receiptImage', receiptModalFile);
 
       const response = await fetch(`${API_BASE}/receptionist/appointments/${receiptModalAppointment._id}/upload-receipt/${token}`, {
         method: 'PUT',
