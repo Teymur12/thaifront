@@ -1409,45 +1409,57 @@ export default function Cedvel() {
                       }}
                       onClick={() => appointment ? openAppointmentModal(appointment) : openAddForm(masseur._id, timeSlot, false)}
                     >
-                      {appointment ? (
-                        <div style={{ width: '100%', fontSize: '11px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: '600', color: '#0284c7', fontSize: '10px' }}>
-                              {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
-                              {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ color: getStatusDisplay(appointment.status).color }}>
-                                {getStatusDisplay(appointment.status).icon}
-                              </span>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'left' }}>
-                            <span style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>{appointment.customer?.name}</span>
-                            <span style={{ display: 'block', color: '#64748b', fontSize: '10px', marginBottom: '4px' }}>{appointment.massageType?.name}</span>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: '600', color: '#059669', fontSize: '11px' }}>
-                                {appointment.advancePayment?.amount > 0 ? (
-                                  `${appointment.advancePayment.amount} AZN (BEH)`
-                                ) : (
-                                  `${appointment.price} AZN`
-                                )}
-                              </span>
-                              {appointment.paymentMethod && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                  <span style={{ color: getPaymentMethodDisplay(appointment.paymentMethod).color }}>
-                                    {getPaymentMethodDisplay(appointment.paymentMethod).icon}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ opacity: 0.5 }}>
-                          <Plus size={16} color="#9ca3af" />
-                        </div>
-                      )}
+                    {appointment ? (
+  <div style={{ width: '100%', fontSize: '11px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+      <span style={{ fontWeight: '600', color: '#0284c7', fontSize: '10px' }}>
+        {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
+        {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {appointment.notes && (
+          <div 
+            title={appointment.notes}
+            style={{ 
+              width: '10px', 
+              height: '10px', 
+              borderRadius: '50%', 
+              backgroundColor: '#f59e0b',
+              cursor: 'help'
+            }}
+          />
+        )}
+        <span style={{ color: getStatusDisplay(appointment.status).color }}>
+          {getStatusDisplay(appointment.status).icon}
+        </span>
+      </div>
+    </div>
+    <div style={{ textAlign: 'left' }}>
+      <span style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>{appointment.customer?.name}</span>
+      <span style={{ display: 'block', color: '#64748b', fontSize: '10px', marginBottom: '4px' }}>{appointment.massageType?.name}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontWeight: '600', color: '#059669', fontSize: '11px' }}>
+          {appointment.advancePayment?.amount > 0 ? (
+            `${appointment.advancePayment.amount} AZN (BEH)`
+          ) : (
+            `${appointment.price} AZN`
+          )}
+        </span>
+        {appointment.paymentMethod && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            <span style={{ color: getPaymentMethodDisplay(appointment.paymentMethod).color }}>
+              {getPaymentMethodDisplay(appointment.paymentMethod).icon}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+) : (
+  <div style={{ opacity: 0.5 }}>
+    <Plus size={16} color="#9ca3af" />
+  </div>
+)}
                     </div>
                   );
                 })}
