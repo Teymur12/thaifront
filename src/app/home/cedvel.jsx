@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Building2, ChevronLeft, ChevronRight, Trash2, Calendar, Users, User, Ban, X, Plus, Search } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, Trash2, Calendar, Users, User, Ban, X, Plus, Search, Eye, Receipt } from 'lucide-react';
 import Cookies from 'js-cookie';
 
 const getToken = () => Cookies.get('authToken');
@@ -26,6 +26,13 @@ export default function AdminCedvel() {
     customer: '', masseur: '', massageType: '', duration: '', price: 0,
     advancePayment: { amount: 0, paymentMethod: 'cash' }
   });
+
+  // ✅ YENİ - Randevu və qəbzi modalları
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState(null);
+  const [loadingReceipt, setLoadingReceipt] = useState(false);
 
   const SLOT_HEIGHT = 240;
 
@@ -167,7 +174,6 @@ export default function AdminCedvel() {
       );
       if (response.ok) {
         const data = await response.json();
-        console.log(data);
         setAppointments(data);
       }
     } catch (error) {
@@ -264,6 +270,40 @@ export default function AdminCedvel() {
     setCalendarMonth(newMonth);
   };
 
+  // ✅ Randevu təfərrüatlarını aç
+  const openAppointmentDetails = (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowAppointmentModal(true);
+  };
+
+  // ✅ Qəbzi yüklə və göstər
+  const viewReceipt = async (appointmentId) => {
+    setLoadingReceipt(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/admin/receipts/${appointmentId}/view/${getToken()}`,
+        { headers: { 'Authorization': `Bearer ${getToken()}` } }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.advancePayment?.receiptImage?.url) {
+          setReceiptUrl(data.advancePayment.receiptImage.url);
+          setShowReceiptModal(true);
+        } else {
+          alert('Qəbzi tapılmadı');
+        }
+      } else {
+        alert('Qəbzi yükləyərkən xəta baş verdi');
+      }
+    } catch (error) {
+      console.error('Receipt view error:', error);
+      alert('Qəbzi açılarkən xəta baş verdi');
+    } finally {
+      setLoadingReceipt(false);
+    }
+  };
+
   useEffect(() => {
     fetchBranches();
     fetchMasseurs();
@@ -326,8 +366,6 @@ export default function AdminCedvel() {
       const [slotHour] = time.split(':').map(Number);
       const startHour = appointmentStart.getHours();
       const startMinute = appointmentStart.getMinutes();
-      
-      // Yalnız randevunun BAŞLADIĞI saat aralığında true qaytar
       return startHour === slotHour && startMinute >= 0;
     });
   };
@@ -510,6 +548,7 @@ export default function AdminCedvel() {
   return (
     <div style={styles.container}>
       {loading && <div style={styles.loadingOverlay}>Yüklənir...</div>}
+      
       <div style={styles.header}>
         <div style={styles.branchHeader}>
           <div style={styles.branchInfo}>
@@ -607,10 +646,12 @@ export default function AdminCedvel() {
           </button>
         </div>
       </div>
+
       <div style={styles.masseursInfo}>
         <Users size={18} />
         <span>Masajistlər: {branchMasseurs.length}</span>
       </div>
+
       <div style={styles.scheduleContainer}>
         <div 
           style={{
@@ -649,6 +690,7 @@ export default function AdminCedvel() {
               </div>
             );
           })}
+
           {hours.map((timeSlot) => (
             <div key={timeSlot} style={styles.scheduleRow}>
               <div style={{
@@ -657,6 +699,7 @@ export default function AdminCedvel() {
               }}>
                 <span style={styles.timeLabel}>{timeSlot}</span>
               </div>
+
               {branchMasseurs.map((masseur) => {
                 const isBlocked = isMasseurBlocked(masseur._id);
                 const occupiedAppointment = isTimeSlotOccupied(masseur._id, timeSlot);
@@ -673,8 +716,9 @@ export default function AdminCedvel() {
                   );
                 }
                 
-                // Əgər bu slotda randevu başlayırsa, randevu kartını göstər
                 if (startAppointment) {
+                  const hasReceipt = startAppointment.advancePayment?.receiptImage?.url;
+                  
                   return (
                     <div 
                       key={`${masseur._id}-${timeSlot}`}
@@ -682,10 +726,11 @@ export default function AdminCedvel() {
                         ...styles.timeSlot,
                         backgroundColor: 'transparent',
                         borderColor: '#e5e7eb',
-                        cursor: 'default',
+                        cursor: 'pointer',
                         ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
                         position: 'relative'
                       }}
+                      onClick={() => openAppointmentDetails(startAppointment)}
                     >
                       <div 
                         style={{
@@ -708,16 +753,29 @@ export default function AdminCedvel() {
                             >
                               {getStatusName(startAppointment.status)}
                             </span>
-                            <button 
-                              style={styles.deleteBtn} 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteAppointment(startAppointment._id);
-                              }}
-                              title="Sil"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {hasReceipt && (
+                                <button 
+                                  style={styles.receiptBtn}onClick={(e) => {
+                                    e.stopPropagation();
+                                    viewReceipt(startAppointment._id);
+                                  }}
+                                  title="Qəbzə bax"
+                                >
+                                  <Receipt size={12} />
+                                </button>
+                              )}
+                              <button 
+                                style={styles.deleteBtn} 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteAppointment(startAppointment._id);
+                                }}
+                                title="Sil"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                           
                           <div style={styles.customerName}>
@@ -761,7 +819,6 @@ export default function AdminCedvel() {
                   );
                 }
                 
-                // Əgər bu slotda randevu davam edirse (amma başlamır), boş slot göstər
                 if (occupiedAppointment) {
                   return (
                     <div 
@@ -774,13 +831,10 @@ export default function AdminCedvel() {
                         ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
                         position: 'relative'
                       }}
-                    >
-                      {/* Boş - randevu davam edir */}
-                    </div>
+                    />
                   );
                 }
                 
-                // Tamamilə boş slot - yeni randevu əlavə edilə bilər
                 return (
                   <div 
                     key={`${masseur._id}-${timeSlot}`}
@@ -805,6 +859,191 @@ export default function AdminCedvel() {
         </div>
       </div>
 
+      {/* ✅ Randevu Təfərrüatları Modalı */}
+      {showAppointmentModal && selectedAppointment && (
+        <div style={styles.modalOverlay} onClick={() => setShowAppointmentModal(false)}>
+          <div style={styles.detailsModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Randevu Təfərrüatları</h3>
+              <button onClick={() => setShowAppointmentModal(false)} style={styles.modalCloseBtn}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={styles.detailsModalBody}>
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Status:</span>
+                <span 
+                  style={{
+                    ...styles.statusBadge,
+                    backgroundColor: getStatusColor(selectedAppointment.status)
+                  }}
+                >
+                  {getStatusName(selectedAppointment.status)}
+                </span>
+              </div>
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Müştəri:</span>
+                <span style={styles.detailValue}>
+                  {selectedAppointment.customer?.name || 'Ad yoxdur'}
+                </span>
+              </div>
+
+              {selectedAppointment.customer?.phone && (
+                <div style={styles.detailRow}>
+                  <span style={styles.detailLabel}>Telefon:</span>
+                  <span style={styles.detailValue}>{selectedAppointment.customer.phone}</span>
+                </div>
+              )}
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Masajist:</span>
+                <span style={styles.detailValue}>
+                  {selectedAppointment.masseur?.name || 'Məlum deyil'}
+                </span>
+              </div>
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Masaj növü:</span>
+                <span style={styles.detailValue}>
+                  {selectedAppointment.massageType?.name || 'Məlum deyil'}
+                </span>
+              </div>
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Vaxt:</span>
+                <span style={styles.detailValue}>
+                  {new Date(selectedAppointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
+                  {new Date(selectedAppointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Müddət:</span>
+                <span style={styles.detailValue}>{selectedAppointment.duration} dəqiqə</span>
+              </div>
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Qiymət:</span>
+                <span style={{...styles.detailValue, color: '#059669', fontWeight: '700'}}>
+                  {selectedAppointment.price} ₼
+                </span>
+              </div>
+
+              {selectedAppointment.advancePayment?.amount > 0 && (
+                <>
+                  <div style={styles.detailRow}>
+                    <span style={styles.detailLabel}>BEH (Avans):</span>
+                    <span style={{...styles.detailValue, color: '#3b82f6', fontWeight: '600'}}>
+                      {selectedAppointment.advancePayment.amount} ₼
+                      <span style={{fontSize: '11px', color: '#64748b', marginLeft: '6px'}}>
+                        ({getPaymentMethodName(selectedAppointment.advancePayment.paymentMethod)})
+                      </span>
+                    </span>
+                  </div>
+
+                  {selectedAppointment.advancePayment.receiptImage?.url && (
+                    <div style={styles.receiptSection}>
+                      <div style={styles.receiptLabel}>
+                        <Receipt size={16} />
+                        <span>BEH Qəbzi:</span>
+                      </div>
+                      <button
+                        onClick={() => viewReceipt(selectedAppointment._id)}
+                        style={styles.viewReceiptBtn}
+                        disabled={loadingReceipt}
+                      >
+                        <Eye size={16} />
+                        {loadingReceipt ? 'Yüklənir...' : 'Qəbzə bax'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedAppointment.paymentMethod && (
+                <div style={styles.detailRow}>
+                  <span style={styles.detailLabel}>Ödəniş üsulu:</span>
+                  <span 
+                    style={{
+                      ...styles.detailValue,
+                      color: getPaymentMethodColor(selectedAppointment.paymentMethod),
+                      fontWeight: '600'
+                    }}
+                  >
+                    {getPaymentMethodName(selectedAppointment.paymentMethod)}
+                  </span>
+                </div>
+              )}
+
+              <div style={styles.detailRow}>
+                <span style={styles.detailLabel}>Yaradan:</span>
+                <span style={styles.detailValue}>
+                  {getReceptionistName(selectedAppointment.createdBy)}
+                </span>
+              </div>
+
+              {selectedAppointment.notes && (
+                <div style={{...styles.detailRow, flexDirection: 'column', alignItems: 'flex-start', gap: '6px'}}>
+                  <span style={styles.detailLabel}>Qeydlər:</span>
+                  <span style={{...styles.detailValue, fontSize: '13px', lineHeight: '1.5'}}>
+                    {selectedAppointment.notes}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button 
+                onClick={() => {
+                  setShowAppointmentModal(false);
+                  deleteAppointment(selectedAppointment._id);
+                }} 
+                style={styles.deleteAppointmentBtn}
+              >
+                <Trash2 size={16} />
+                Randevunu Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Qəbzi Göstərmə Modalı */}
+      {showReceiptModal && receiptUrl && (
+        <div 
+          style={styles.receiptModalOverlay} 
+          onClick={() => {
+            setShowReceiptModal(false);
+            setReceiptUrl(null);
+          }}
+        >
+          <div style={styles.receiptModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.receiptModalHeader}>
+              <h3 style={styles.receiptModalTitle}>BEH Qəbzi</h3>
+              <button 
+                onClick={() => {
+                  setShowReceiptModal(false);
+                  setReceiptUrl(null);
+                }} 
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={styles.receiptImageContainer}>
+              <img 
+                src={receiptUrl} 
+                alt="Receipt" 
+                style={styles.receiptImage}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Yeni Randevu Modalı */}
       {showAddModal && (
         <div style={styles.modalOverlay} onClick={closeAddModal}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -1360,7 +1599,7 @@ const styles = {
     borderBottom: '2px solid #ef4444'
   },
   blockedSlot: {
-    background: 'repeating-linear-gradient(45deg, #f9fafb, #f9fafb 10px, #f3f4f6 10px, #f3f4f6 20px)',
+    background: 'repeating-linear-gradient(45deg, #f9fafb, #f9fafb 10px, #f3f4f6 10px, #f3f4f620px)',
     borderRight: '1px solid #d1d5db',
     borderBottom: '1px solid #d1d5db',
     minHeight: '240px',
@@ -1481,6 +1720,18 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
   },
+  receiptBtn: {
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '5px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s ease',
+    flexShrink: 0
+  },
   deleteBtn: {
     background: '#ef4444',
     color: 'white',
@@ -1516,6 +1767,16 @@ const styles = {
     flexDirection: 'column',
     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
   },
+  detailsModalContent: {
+    background: 'white',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '600px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
+  },
   modalHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1544,6 +1805,61 @@ const styles = {
     padding: '20px',
     overflowY: 'auto',
     flex: 1
+  },
+  detailsModalBody: {
+    padding: '20px',
+    overflowY: 'auto',
+    flex: 1
+  },
+  detailRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 0',
+    borderBottom: '1px solid #f3f4f6'
+  },
+  detailLabel: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  detailValue: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#1e293b',
+    textAlign: 'right'
+  },
+  receiptSection: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px',
+    background: '#eff6ff',
+    borderRadius: '8px',
+    marginTop: '12px',
+    border: '1px solid #3b82f6'
+  },
+  receiptLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1e40af'
+  },
+  viewReceiptBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 16px',
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
   },
   formGroup: {
     marginBottom: '16px'
@@ -1681,5 +1997,72 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease'
+  },
+  deleteAppointmentBtn: {
+    flex: 1,
+    padding: '12px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'all 0.2s ease'
+  },
+  receiptModalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.8)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000,
+    padding: '20px'
+  },
+  receiptModalContent: {
+    background: 'white',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '900px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+  },
+  receiptModalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  receiptModalTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0
+  },
+  receiptImageContainer: {
+    padding: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    overflow: 'auto',
+    background: '#f8fafc'
+  },
+  receiptImage: {
+    maxWidth: '100%',
+    maxHeight: '100%',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
   }
-}
+};

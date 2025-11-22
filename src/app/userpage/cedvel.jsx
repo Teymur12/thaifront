@@ -887,80 +887,100 @@ export default function Cedvel() {
     setShowEditModal(true);
   };
 
-  const updateAppointment = async () => {
-    if (!selectedAppointment) return;
+const updateAppointment = async () => {
+  if (!selectedAppointment) return;
 
-    try {
-      const token = getToken();
-      const [hour, minute] = formData.startTime.split(':');
-      
-      const startTime = new Date(selectedDate);
-      startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
-      const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
-
-      const updateData = {
-        customer: formData.customer,
-        masseur: formData.masseur,
-        massageType: formData.massageType,
-        duration: parseInt(formData.duration),
-        price: formData.price,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        notes: formData.notes
-      };
-
-      const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
-
-      if (response.ok) {
-        await fetchDayAppointments();
-        setShowEditModal(false);
-        resetForm();
-        alert('Randevu uğurla yeniləndi!');
-      } else {
-        const error = await response.json();
-        alert('Xəta: ' + (error.message || 'Randevu yenilənmədi'));
-      }
-    } catch (error) {
-      console.error('Update appointment error:', error);
-      alert('Randevu yenilərkən xəta baş verdi');
-    }
-  };
-
-  const deleteAppointment = async () => {
-    if (!selectedAppointment) return;
+  try {
+    const token = getToken();
+    const [hour, minute] = formData.startTime.split(':');
     
-    if (!confirm('Randevunu silmək istədiyinizdən əminsiniz?')) return;
+    const startTime = new Date(selectedDate);
+    startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
+    const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
 
-    try {
-      const token = getToken();
-      const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}/${token}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    // Endirim məntiqi
+    let finalPrice = formData.price;
+    let discountInfo = null;
 
-      if (response.ok) {
-        await fetchDayAppointments();
-        setShowAppointmentModal(false);
-        setSelectedAppointment(null);
-        alert('Randevu uğurla silindi!');
+    const SPECIAL_BRANCH_ID = '68d2693d8b8c7e6256a90bc8';
+    if (userBranch?._id === SPECIAL_BRANCH_ID) {
+      const dayOfWeek = startTime.getDay();
+      let discountPercent = 0;
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        discountPercent = 10;
       } else {
-        const error = await response.json();
-        alert('Xəta: ' + (error.message || 'Randevu silinmədi'));
+        discountPercent = 25;
       }
-    } catch (error) {
-      console.error('Delete appointment error:', error);
-      alert('Randevu silinərkən xəta baş verdi');
+      
+      const originalPrice = formData.price;
+      const discountAmount = (originalPrice * discountPercent) / 100;
+      const priceAfterDiscount = originalPrice - discountAmount;
+      
+      if (discountPercent === 10) {
+        finalPrice = Math.round(priceAfterDiscount);
+      } else if (discountPercent === 25) {
+        finalPrice = Math.ceil(priceAfterDiscount);
+      }
+      
+      discountInfo = {
+        percent: discountPercent,
+        amount: originalPrice - finalPrice,
+        originalPrice: originalPrice,
+        reason: dayOfWeek === 0 || dayOfWeek === 6 ? 'Həftə sonu endirimi' : 'Həftə içi endirimi'
+      };
     }
-  };
+
+    const updateData = {
+      customer: formData.customer,
+      masseur: formData.masseur,
+      massageType: formData.massageType,
+      duration: parseInt(formData.duration),
+      price: finalPrice,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      notes: formData.notes
+    };
+
+    if (discountInfo) {
+      updateData.discount = discountInfo;
+    }
+
+    const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (response.ok) {
+      await fetchDayAppointments();
+      setShowEditModal(false);
+      resetForm();
+      
+      let successMessage = 'Randevu uğurla yeniləndi!';
+      
+      if (discountInfo) {
+        successMessage += `\n\n📊 Qiymət Məlumatı:`;
+        successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
+        successMessage += `\n• Endirim (${discountInfo.percent}%): -${discountInfo.amount.toFixed(2)} AZN`;
+        successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
+        successMessage += `\n• Səbəb: ${discountInfo.reason}`;
+      }
+      
+      alert(successMessage);
+    } else {
+      const error = await response.json();
+      alert('Xəta: ' + (error.message || 'Randevu yenilənmədi'));
+    }
+  } catch (error) {
+    console.error('Update appointment error:', error);
+    alert('Randevu yenilərkən xəta baş verdi');
+  }
+};
+
 
   const resetForm = () => {
     setFormData({
@@ -2039,28 +2059,6 @@ export default function Cedvel() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={deleteAppointment}
-                    style={{
-                      width: '100%',
-                      marginTop: '12px',
-                      padding: '12px',
-                      backgroundColor: '#fef2f2',
-                      color: '#ef4444',
-                      border: '1px solid #fecaca',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <Trash2 size={16} />
-                    Randevunu Sil
-                  </button>
                 </>
               )}
             </div>
