@@ -660,42 +660,59 @@ export default function Hesabat() {
     }
   };
 
-  const calculatePaymentStats = () => {
-    const stats = { cash: 0, card: 0, terminal: 0 };
+const calculatePaymentStats = () => {
+  const stats = { cash: 0, card: 0, terminal: 0 };
+
+  behler.forEach(beh => {
+    if (beh.odenisUsulu === 'cash') stats.cash += beh.mebleg;
+    if (beh.odenisUsulu === 'card') stats.card += beh.mebleg;
+    if (beh.odenisUsulu === 'terminal') stats.terminal += beh.mebleg;
+  });
+
+  giftCards.forEach(card => {
+    if (card.odenisUsulu === 'cash') stats.cash += card.mebleg;
+    if (card.odenisUsulu === 'card') stats.card += card.mebleg;
+    if (card.odenisUsulu === 'terminal') stats.terminal += card.mebleg;
+  });
+
+  gelirler.forEach(gelir => {
+    if (!gelir.isMixed) {
+      const amount = gelir.amount || 0;
+      if (gelir.paymentMethod === 'cash') stats.cash += amount;
+      if (gelir.paymentMethod === 'card') stats.card += amount;
+      if (gelir.paymentMethod === 'terminal') stats.terminal += amount;
+    }
+
+    if (gelir.tips && gelir.tips.amount > 0 && gelir.tips.paymentMethods) {
+      const tipPM = gelir.tips.paymentMethods;
+      stats.cash += tipPM.cash || 0;
+      stats.card += tipPM.card || 0;
+      stats.terminal += tipPM.terminal || 0;
+    }
     
-    behler.forEach(beh => {
-      if (beh.odenisUsulu === 'cash') stats.cash += beh.mebleg;
-      if (beh.odenisUsulu === 'card') stats.card += beh.mebleg;
-      if (beh.odenisUsulu === 'terminal') stats.terminal += beh.mebleg;
-    });
-    
-    giftCards.forEach(card => {
-      if (card.odenisUsulu === 'cash') stats.cash += card.mebleg;
-      if (card.odenisUsulu === 'card') stats.card += card.mebleg;
-      if (card.odenisUsulu === 'terminal') stats.terminal += card.mebleg;
-    });
-    
-    gelirler.forEach(gelir => {
-      if (gelir.isMixed) {
-        stats.cash += gelir.cash || 0;
-        stats.card += gelir.card || 0;
-        stats.terminal += gelir.terminal || 0;
-      } else {
-        const amount = gelir.amount || 0;
-        if (gelir.paymentMethod === 'cash') stats.cash += amount;
-        if (gelir.paymentMethod === 'card') stats.card += amount;
-        if (gelir.paymentMethod === 'terminal') stats.terminal += amount;
+  });
+
+  return stats;
+};
+
+
+  const calculateTotalTips = () => {
+    let totalTips = 0;
+    gelirler.forEach(gelir => {if (gelir.tips && gelir.tips.amount > 0) {
+        totalTips += gelir.tips.amount;
       }
     });
     
-    return stats;
+    return totalTips;
   };
+
 
   const calculateTotalRevenue = () => {
     let total = 0;
     total += behler.reduce((sum, beh) => sum + beh.mebleg, 0);
     total += giftCards.reduce((sum, card) => sum + card.mebleg, 0);
-    
+    const tips = calculateTotalTips()
+    total += tips
     gelirler.forEach(gelir => {
       if (gelir.isMixed) {
         total += (gelir.cash || 0) + (gelir.card || 0) + (gelir.terminal || 0);
@@ -707,14 +724,7 @@ export default function Hesabat() {
     return total;
   };
 
-  const calculateTotalTips = () => {
-    let totalTips = 0;
-    gelirler.forEach(gelir => {if (gelir.tips && gelir.tips.amount > 0) {
-        totalTips += gelir.tips.amount;
-      }
-    });
-    return totalTips;
-  };
+  
 
   const calculateTotalExpenses = () => {
     return xercler.reduce((sum, xerc) => sum + xerc.mebleg, 0);
