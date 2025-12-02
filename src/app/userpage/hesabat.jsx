@@ -38,7 +38,7 @@ function BlackjackGame({ onClose }) {
   const calculateScore = (hand) => {
     let score = 0;
     let aces = 0;
-    
+
     hand.forEach(card => {
       const value = getCardValue(card);
       score += value;
@@ -57,7 +57,7 @@ function BlackjackGame({ onClose }) {
     const newDeck = createDeck();
     const playerCards = [newDeck.pop(), newDeck.pop()];
     const dealerCards = [newDeck.pop(), newDeck.pop()];
-    
+
     setDeck(newDeck);
     setPlayerHand(playerCards);
     setDealerHand(dealerCards);
@@ -197,14 +197,14 @@ function BlackjackGame({ onClose }) {
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {dealerHand.map((card, index) => (
-              <div key={index} style={{ 
-                width: '100px', 
-                height: '140px', 
-                background: (index === 1 && !dealerRevealed) ? '#334155' : 'white', 
-                borderRadius: '8px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'center', 
+              <div key={index} style={{
+                width: '100px',
+                height: '140px',
+                background: (index === 1 && !dealerRevealed) ? '#334155' : 'white',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
                 alignItems: 'center',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
                 border: '2px solid #475569',
@@ -237,14 +237,14 @@ function BlackjackGame({ onClose }) {
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {playerHand.map((card, index) => (
-              <div key={index} style={{ 
-                width: '100px', 
-                height: '140px', 
-                background: 'white', 
-                borderRadius: '8px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'center', 
+              <div key={index} style={{
+                width: '100px',
+                height: '140px',
+                background: 'white',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
                 alignItems: 'center',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
                 border: '2px solid #475569'
@@ -265,69 +265,69 @@ function BlackjackGame({ onClose }) {
       <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
         {gameStatus === 'playing' && (
           <>
-            <button onClick={hit} style={{ 
-              background: '#10b981', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '12px', 
-              padding: '16px 32px', 
-              fontSize: '18px', 
-              fontWeight: '700', 
+            <button onClick={hit} style={{
+              background: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '16px 32px',
+              fontSize: '18px',
+              fontWeight: '700',
               cursor: 'pointer',
               boxShadow: '0 4px 6px rgba(16, 185, 129, 0.3)',
               transition: 'transform 0.1s'
             }}
-            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
-            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+              onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+              onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
             >
               KART ÇƏK
             </button>
-            <button onClick={stand} style={{ 
-              background: '#f59e0b', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '12px', 
-              padding: '16px 32px', 
-              fontSize: '18px', 
-              fontWeight: '700', 
+            <button onClick={stand} style={{
+              background: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '16px 32px',
+              fontSize: '18px',
+              fontWeight: '700',
               cursor: 'pointer',
               boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)',
               transition: 'transform 0.1s'
             }}
-            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
-            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+              onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+              onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
             >
               DAYAN
             </button>
           </>
         )}
         {gameStatus === 'finished' && (
-          <button onClick={startNewGame} style={{ 
-            background: '#6366f1', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '12px', 
-            padding: '16px 48px', 
-            fontSize: '18px', 
-            fontWeight: '700', 
+          <button onClick={startNewGame} style={{
+            background: '#6366f1',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            padding: '16px 48px',
+            fontSize: '18px',
+            fontWeight: '700',
             cursor: 'pointer',
             boxShadow: '0 4px 6px rgba(99, 102, 241, 0.3)',
             transition: 'transform 0.1s'
           }}
-          onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
-          onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
           >
             YENİ OYUN
           </button>
         )}
         {gameStatus === 'dealer' && (
-          <div style={{ 
-            background: '#1e293b', 
-            color: '#fbbf24', 
-            border: '2px solid #fbbf24', 
-            borderRadius: '12px', 
-            padding: '16px 32px', 
-            fontSize: '18px', 
+          <div style={{
+            background: '#1e293b',
+            color: '#fbbf24',
+            border: '2px solid #fbbf24',
+            borderRadius: '12px',
+            padding: '16px 32px',
+            fontSize: '18px',
             fontWeight: '700'
           }}>
             Diler oynayır...
@@ -429,11 +429,11 @@ export default function Hesabat() {
       if (response.ok) {
         const appointments = await response.json();
         const completedAppointments = appointments.filter(apt => apt.status === 'completed');
-        
+
         setGelirler(completedAppointments.map(apt => {
           const hasAdvance = apt.advancePayment?.amount > 0;
           let paymentDetails = {};
-          
+
           if (apt.paymentType === 'mixed' && apt.remainingPayment) {
             paymentDetails = {
               isMixed: true,
@@ -443,14 +443,14 @@ export default function Hesabat() {
               total: (apt.remainingPayment.cash || 0) + (apt.remainingPayment.card || 0) + (apt.remainingPayment.terminal || 0)
             };
           } else {
-            const remainingAmount = hasAdvance 
-              ? (apt.price - apt.advancePayment.amount) 
+            const remainingAmount = hasAdvance
+              ? (apt.price - apt.advancePayment.amount)
               : apt.price;
-            
+
             const paymentMethod = hasAdvance && apt.remainingPayment?.paymentMethod
               ? apt.remainingPayment.paymentMethod
               : apt.paymentMethod;
-            
+
             paymentDetails = {
               isMixed: false,
               paymentMethod: paymentMethod,
@@ -660,50 +660,66 @@ export default function Hesabat() {
     }
   };
 
-const calculatePaymentStats = () => {
-  const stats = { cash: 0, card: 0, terminal: 0 };
+  const calculatePaymentStats = () => {
+    const stats = { cash: 0, card: 0, terminal: 0 };
 
-  behler.forEach(beh => {
-    if (beh.odenisUsulu === 'cash') stats.cash += beh.mebleg;
-    if (beh.odenisUsulu === 'card') stats.card += beh.mebleg;
-    if (beh.odenisUsulu === 'terminal') stats.terminal += beh.mebleg;
-  });
+    behler.forEach(beh => {
+      if (beh.odenisUsulu === 'cash') stats.cash += beh.mebleg;
+      if (beh.odenisUsulu === 'card') stats.card += beh.mebleg;
+      if (beh.odenisUsulu === 'terminal') stats.terminal += beh.mebleg;
+    });
 
-  giftCards.forEach(card => {
-    if (card.odenisUsulu === 'cash') stats.cash += card.mebleg;
-    if (card.odenisUsulu === 'card') stats.card += card.mebleg;
-    if (card.odenisUsulu === 'terminal') stats.terminal += card.mebleg;
-  });
+    giftCards.forEach(card => {
+      if (card.odenisUsulu === 'cash') stats.cash += card.mebleg;
+      if (card.odenisUsulu === 'card') stats.card += card.mebleg;
+      if (card.odenisUsulu === 'terminal') stats.terminal += card.mebleg;
+    });
 
-  gelirler.forEach(gelir => {
-    if (!gelir.isMixed) {
-      const amount = gelir.amount || 0;
-      if (gelir.paymentMethod === 'cash') stats.cash += amount;
-      if (gelir.paymentMethod === 'card') stats.card += amount;
-      if (gelir.paymentMethod === 'terminal') stats.terminal += amount;
-    }
+    gelirler.forEach(gelir => {
+      if (!gelir.isMixed) {
+        const amount = gelir.amount || 0;
+        if (gelir.paymentMethod === 'cash') stats.cash += amount;
+        if (gelir.paymentMethod === 'card') stats.card += amount;
+        if (gelir.paymentMethod === 'terminal') stats.terminal += amount;
+      }
 
-    if (gelir.tips && gelir.tips.amount > 0 && gelir.tips.paymentMethods) {
-      const tipPM = gelir.tips.paymentMethods;
-      stats.cash += tipPM.cash || 0;
-      stats.card += tipPM.card || 0;
-      stats.terminal += tipPM.terminal || 0;
-    }
-    
-  });
+      if (gelir.tips && gelir.tips.amount > 0 && gelir.tips.paymentMethods) {
+        const tipPM = gelir.tips.paymentMethods;
+        stats.cash += tipPM.cash || 0;
+        stats.card += tipPM.card || 0;
+        stats.terminal += tipPM.terminal || 0;
+      }
 
-  return stats;
-};
+    });
+
+    return stats;
+  };
 
 
   const calculateTotalTips = () => {
     let totalTips = 0;
-    gelirler.forEach(gelir => {if (gelir.tips && gelir.tips.amount > 0) {
+    gelirler.forEach(gelir => {
+      if (gelir.tips && gelir.tips.amount > 0) {
         totalTips += gelir.tips.amount;
       }
     });
-    
+
     return totalTips;
+  };
+
+  const calculateTipsStats = () => {
+    const stats = { cash: 0, card: 0, terminal: 0 };
+
+    gelirler.forEach(gelir => {
+      if (gelir.tips && gelir.tips.amount > 0 && gelir.tips.paymentMethods) {
+        const tipPM = gelir.tips.paymentMethods;
+        stats.cash += tipPM.cash || 0;
+        stats.card += tipPM.card || 0;
+        stats.terminal += tipPM.terminal || 0;
+      }
+    });
+
+    return stats;
   };
 
 
@@ -711,8 +727,8 @@ const calculatePaymentStats = () => {
     let total = 0;
     total += behler.reduce((sum, beh) => sum + beh.mebleg, 0);
     total += giftCards.reduce((sum, card) => sum + card.mebleg, 0);
-    const tips = calculateTotalTips()
-    total += tips
+    const tips = calculateTotalTips();
+    total += tips;
     gelirler.forEach(gelir => {
       if (gelir.isMixed) {
         total += (gelir.cash || 0) + (gelir.card || 0) + (gelir.terminal || 0);
@@ -720,11 +736,11 @@ const calculatePaymentStats = () => {
         total += gelir.amount || 0;
       }
     });
-    
+
     return total;
   };
 
-  
+
 
   const calculateTotalExpenses = () => {
     return xercler.reduce((sum, xerc) => sum + xerc.mebleg, 0);
@@ -749,7 +765,7 @@ const calculatePaymentStats = () => {
     setModalType('edit');
     setEditingItem(item);
     setEditingType(type);
-    
+
     if (type === 'xerc') {
       setFormData({
         amount: item.mebleg.toString(),
@@ -837,6 +853,7 @@ const calculatePaymentStats = () => {
   const totalExpenses = calculateTotalExpenses();
   const netProfit = calculateNetProfit();
   const totalTips = calculateTotalTips();
+  const tipsStats = calculateTipsStats();
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh' }}>
@@ -846,12 +863,12 @@ const calculatePaymentStats = () => {
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Maliyyə Hesabatı</h1>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {userData?.username === "leman" && (<button onClick={() => setShowBlackjack(true)} style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-             
+
               el vurma
-            </button>)}  
-            <input 
-              type="date" 
-              value={selectedDate} 
+            </button>)}
+            <input
+              type="date"
+              value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 16px', fontSize: '14px', color: '#475569' }}
             />
@@ -869,7 +886,7 @@ const calculatePaymentStats = () => {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
         <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -904,6 +921,17 @@ const calculatePaymentStats = () => {
           <p style={{ fontSize: '32px', fontWeight: '700', color: '#1e293b', margin: '0 0 8px 0' }}>{formatCurrency(netProfit)}</p>
           <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Mənfəət</p>
         </div>
+
+        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <DollarSign size={24} color="#f59e0b" />
+            </div>
+          </div>
+          <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', margin: '0 0 8px 0' }}>Ümumi Bəxşiş</h3>
+          <p style={{ fontSize: '32px', fontWeight: '700', color: '#1e293b', margin: '0 0 8px 0' }}>{formatCurrency(totalTips)}</p>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Bəxşişlər</p>
+        </div>
       </div>
 
       {/* Payment Methods */}
@@ -934,13 +962,43 @@ const calculatePaymentStats = () => {
         </div>
       </div>
 
+      {/* Tips Breakdown */}
+      {totalTips > 0 && (
+        <div style={{ background: 'white', borderRadius: '12px', padding: '20px', marginBottom: '32px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>Bəxşişlər (Ödəniş Üsullarına görə):</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a' }}>
+              <Banknote size={24} color="#f59e0b" />
+              <div>
+                <p style={{ fontSize: '12px', color: '#b45309', margin: 0, fontWeight: '500' }}>Nağd Bəxşiş</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#b45309', margin: 0 }}>{formatCurrency(tipsStats.cash)}</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a' }}>
+              <CreditCard size={24} color="#f59e0b" />
+              <div>
+                <p style={{ fontSize: '12px', color: '#b45309', margin: 0, fontWeight: '500' }}>Kart Bəxşiş</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#b45309', margin: 0 }}>{formatCurrency(tipsStats.card)}</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a' }}>
+              <Monitor size={24} color="#f59e0b" />
+              <div>
+                <p style={{ fontSize: '12px', color: '#b45309', margin: 0, fontWeight: '500' }}>Terminal Bəxşiş</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#b45309', margin: 0 }}>{formatCurrency(tipsStats.terminal)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '8px', borderBottom: '2px solid #e2e8f0' }}>
-          <button 
+          <button
             onClick={() => setActiveTab('gelir')}
-            style={{ 
-              padding: '12px 24px', 
+            style={{
+              padding: '12px 24px',
               background: activeTab === 'gelir' ? '#3b82f6' : 'transparent',
               color: activeTab === 'gelir' ? 'white' : '#64748b',
               border: 'none',
@@ -956,10 +1014,10 @@ const calculatePaymentStats = () => {
             <TrendingUp size={18} />
             Gəlirlər ({gelirler.length + behler.length + giftCards.length})
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('xerc')}
-            style={{ 
-              padding: '12px 24px', 
+            style={{
+              padding: '12px 24px',
               background: activeTab === 'xerc' ? '#3b82f6' : 'transparent',
               color: activeTab === 'xerc' ? 'white' : '#64748b',
               border: 'none',
@@ -1141,15 +1199,15 @@ const calculatePaymentStats = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Məbləğ</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.01"
                   value={formData.amount}
-                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
                   placeholder="0.00"
                   required
@@ -1158,68 +1216,68 @@ const calculatePaymentStats = () => {
 
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Kateqoriya</label>
-<select
-value={formData.category}
-onChange={(e) => setFormData({...formData, category: e.target.value})}
-style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-required
->
-<option value="">Seçin...</option>
-{xercKateqoriyalari.map(cat => (
-<option key={cat} value={cat}>{cat}</option>
-))}
-</select>
-</div><div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>İzahat</label>
-            <textarea 
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', minHeight: '100px', boxSizing: 'border-box', fontFamily: 'inherit' }}
-              placeholder="Xərc haqqında qeyd..."
-              required
-            />
-          </div>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                  required
+                >
+                  <option value="">Seçin...</option>
+                  {xercKateqoriyalari.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div><div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>İzahat</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', minHeight: '100px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                  placeholder="Xərc haqqında qeyd..."
+                  required
+                />
+              </div>
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Tarix</label>
-            <input 
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({...formData, date: e.target.value})}
-              style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-              required
-            />
-          </div>
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Tarix</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button 
-              type="button"
-              onClick={closeModal}
-              style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
-            >
-              Ləğv et
-            </button>
-            <button 
-              type="submit"
-              disabled={loading}
-              style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              <Save size={18} />
-              {loading ? 'Saxlanılır...' : 'Saxla'}
-            </button>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  Ləğv et
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Save size={18} />
+                  {loading ? 'Saxlanılır...' : 'Saxla'}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-    </div>
-  )}
+        </div>
+      )}
 
-  {loading && (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-      <div style={{ background: 'white', padding: '24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <RefreshCw size={24} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
-        <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: '600' }}>Yüklənir...</span>
-      </div>
-    </div>
-  )}
-</div>);
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <RefreshCw size={24} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: '600' }}>Yüklənir...</span>
+          </div>
+        </div>
+      )}
+    </div>);
 }
