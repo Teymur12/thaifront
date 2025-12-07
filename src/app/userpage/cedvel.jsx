@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
-  Building2, 
+import {
+  Building2,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -36,14 +36,14 @@ export default function Cedvel() {
   const [massageTypes, setMassageTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     customer: '',
     masseur: '',
@@ -79,7 +79,7 @@ export default function Cedvel() {
 
   const [userData, setUserData] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
-  
+
   const [showMasseurMenu, setShowMasseurMenu] = useState(null);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [selectedMasseurForBlock, setSelectedMasseurForBlock] = useState(null);
@@ -154,28 +154,28 @@ export default function Cedvel() {
   const filterActiveMasseurs = (allMasseurs) => {
     const currentDate = new Date(selectedDate);
     currentDate.setHours(0, 0, 0, 0);
-    
+
     return allMasseurs.filter(masseur => {
       if (!masseur.blockedDates || masseur.blockedDates.length === 0) {
         return true;
       }
-      
+
       const isBlocked = masseur.blockedDates.some(blocked => {
         const blockedDate = new Date(blocked.date);
         blockedDate.setHours(0, 0, 0, 0);
         return blockedDate.getTime() === currentDate.getTime();
       });
-      
+
       return !isBlocked;
     });
   };
 
   const checkIfMasseurBlocked = (masseur) => {
     if (!masseur.blockedDates || masseur.blockedDates.length === 0) return false;
-    
+
     const currentDate = new Date(selectedDate);
     currentDate.setHours(0, 0, 0, 0);
-    
+
     return masseur.blockedDates.some(blocked => {
       const blockedDate = new Date(blocked.date);
       blockedDate.setHours(0, 0, 0, 0);
@@ -213,7 +213,7 @@ export default function Cedvel() {
         setAllMasseurs(masseursData);
         const activeMasseurs = filterActiveMasseurs(masseursData);
         setMasseurs(activeMasseurs);
-        
+
         const blocked = masseursData.filter(m => checkIfMasseurBlocked(m));
         setBlockedMasseursForToday(blocked);
       }
@@ -226,7 +226,7 @@ export default function Cedvel() {
     setLoading(true);
     try {
       const token = getToken();
-      
+
       const [customersRes, masseursRes, massageTypesRes] = await Promise.all([
         fetch(`${API_BASE}/receptionist/customers/${token}`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -266,7 +266,7 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const dateString = formatDateForAPI(selectedDate);
-     
+
       const response = await fetch(`${API_BASE}/receptionist/appointments/${dateString}/${token}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -286,7 +286,7 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const dateString = formatDateForAPI(selectedDate);
-      
+
       const response = await fetch(`${API_BASE}/receptionist/masseurs/${selectedMasseurForBlock._id}/block/${dateString}/${token}`, {
         method: 'POST',
         headers: {
@@ -318,7 +318,7 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const dateString = formatDateForAPI(selectedDate);
-      
+
       const response = await fetch(`${API_BASE}/receptionist/masseurs/${masseur._id}/unblock/${dateString}/${token}`, {
         method: 'DELETE',
         headers: {
@@ -366,7 +366,7 @@ export default function Cedvel() {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
+
     return { daysInMonth, startingDayOfWeek };
   };
 
@@ -405,7 +405,20 @@ export default function Cedvel() {
 
       if (response.ok && data.valid) {
         const giftCard = data.giftCard;
-        
+
+        // Check if gift card is expired (more than 2 months from purchase date)
+        const purchaseDate = new Date(giftCard.purchaseDate);
+        const currentDate = new Date();
+        const twoMonthsInMs = 60 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
+        const timeDifference = currentDate - purchaseDate;
+
+        if (timeDifference > twoMonthsInMs) {
+          setGiftCardError('Bu hədiyyə kartının vaxtı keçib və istifadə edilə bilməz');
+          setFormData(prev => ({ ...prev, giftCard: null }));
+          setValidatingGiftCard(false);
+          return;
+        }
+
         setFormData(prev => ({
           ...prev,
           giftCard: giftCard,
@@ -452,7 +465,7 @@ export default function Cedvel() {
         setFoundCustomers([customer]);
         setShowCustomerDropdown(true);
       } else {
-        const filteredCustomers = customers.filter(customer => 
+        const filteredCustomers = customers.filter(customer =>
           customer.phone.includes(phone) || customer.name.toLowerCase().includes(phone.toLowerCase())
         );
         setFoundCustomers(filteredCustomers);
@@ -460,7 +473,7 @@ export default function Cedvel() {
       }
     } catch (error) {
       console.error('Customer search error:', error);
-      const filteredCustomers = customers.filter(customer => 
+      const filteredCustomers = customers.filter(customer =>
         customer.phone.includes(phone) || customer.name.toLowerCase().includes(phone.toLowerCase())
       );
       setFoundCustomers(filteredCustomers);
@@ -546,14 +559,14 @@ export default function Cedvel() {
         alert('Zəhmət olmasa yalnız şəkil faylı seçin!');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         alert('Faylın ölçüsü 5MB-dan çox ola bilməz!');
         return;
       }
 
       setReceiptFile(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setReceiptPreview(e.target.result);
@@ -569,14 +582,14 @@ export default function Cedvel() {
         alert('Zəhmət olmasa yalnız şəkil faylı seçin!');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         alert('Faylın ölçüsü 5MB-dan çox ola bilməz!');
         return;
       }
 
       setReceiptModalFile(file);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setReceiptModalPreview(e.target.result);
@@ -687,17 +700,17 @@ export default function Cedvel() {
     try {
       const token = getToken();
       const [hour, minute] = selectedSlot.time.split(':');
-      
+
       const startTime = new Date(selectedDate);
       startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
-      
+
       if (isNaN(startTime.getTime())) {
         alert('Başlanğıc vaxtı səhvdir!');
         return;
       }
-      
+
       const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
-      
+
       if (isNaN(endTime.getTime())) {
         alert('Bitmə vaxtı hesablanmadı!');
         return;
@@ -710,23 +723,23 @@ export default function Cedvel() {
       if (userBranch._id === SPECIAL_BRANCH_ID) {
         const dayOfWeek = startTime.getDay();
         let discountPercent = 0;
-        
+
         if (dayOfWeek === 0 || dayOfWeek === 6) {
           discountPercent = 10;
         } else {
           discountPercent = 25;
         }
-        
+
         const originalPrice = formData.price;
         const discountAmount = (originalPrice * discountPercent) / 100;
         const priceAfterDiscount = originalPrice - discountAmount;
-        
+
         if (discountPercent === 10) {
           finalPrice = Math.round(priceAfterDiscount);
         } else if (discountPercent === 25) {
           finalPrice = Math.ceil(priceAfterDiscount);
         }
-        
+
         discountInfo = {
           percent: discountPercent,
           amount: originalPrice - finalPrice,
@@ -736,23 +749,23 @@ export default function Cedvel() {
       }
 
       const appointmentData = {
-  customer: formData.customer,
-  masseur: formData.masseur,
-  branch: userBranch._id,
-  massageType: formData.massageType,
-  duration: parseInt(formData.duration),
-  price: finalPrice,
-  startTime: startTime.toISOString(),
-  endTime: endTime.toISOString(),
-  status: 'scheduled',
-  notes: formData.notes || '',
-  createdBy: userData.id,
-  discountApplied: !!discountInfo  
-};
+        customer: formData.customer,
+        masseur: formData.masseur,
+        branch: userBranch._id,
+        massageType: formData.massageType,
+        duration: parseInt(formData.duration),
+        price: finalPrice,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        status: 'scheduled',
+        notes: formData.notes || '',
+        createdBy: userData.id,
+        discountApplied: !!discountInfo
+      };
 
-if (discountInfo) {
-  appointmentData.discount = discountInfo;
-}
+      if (discountInfo) {
+        appointmentData.discount = discountInfo;
+      }
 
       if (showAdvancePayment && advanceAmount && advanceMethod) {
         appointmentData.advancePayment = {
@@ -763,7 +776,7 @@ if (discountInfo) {
 
       const formDataToSend = new FormData();
       formDataToSend.append('body', JSON.stringify(appointmentData));
-      
+
       if (receiptFile && showAdvancePayment && advanceAmount) {
         formDataToSend.append('receiptImage', receiptFile);
       }
@@ -778,7 +791,7 @@ if (discountInfo) {
 
       if (response.ok) {
         const newAppointment = await response.json();
-        
+
         if (formData.giftCard) {
           try {
             await fetch(`${API_BASE}/gift-cards/use/${formData.giftCard.cardNumber}/${token}`, {
@@ -800,9 +813,9 @@ if (discountInfo) {
 
         await fetchDayAppointments();
         resetForm();
-        
+
         let successMessage = 'Randevu uğurla əlavə edildi!';
-        
+
         if (discountInfo) {
           successMessage += `\n\n📊 Qiymət Məlumatı:`;
           successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
@@ -810,14 +823,14 @@ if (discountInfo) {
           successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
           successMessage += `\n• Səbəb: ${discountInfo.reason}`;
         }
-        
+
         if (showAdvancePayment && advanceAmount) {
           successMessage += `\n\n💰 BEH: ${advanceAmount} AZN qeydə alındı`;
           if (receiptFile) {
             successMessage += `\n📸 Qəbzi şəkli yükləndi`;
           }
         }
-        
+
         alert(successMessage);
       } else {
         const error = await response.json();
@@ -832,7 +845,7 @@ if (discountInfo) {
   const completeAppointment = async (paymentMethod) => {
     if (!selectedAppointment) return;
 
-    setLoading(true); 
+    setLoading(true);
     try {
       const token = getToken();
       const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}/complete/${token}`, {
@@ -846,10 +859,10 @@ if (discountInfo) {
 
       if (response.ok) {
         const result = await response.json();
-        
+
         await fetchDayAppointments();
         setShowAppointmentModal(false);
-        
+
         if (result.whatsappLink) {
           setWhatsappLink(result.whatsappLink);
           setCompletedCustomerName(selectedAppointment.customer?.name || 'Müştəri');
@@ -857,7 +870,7 @@ if (discountInfo) {
         } else {
           alert('Randevu tamamlandı və ödəniş qeydə alındı!');
         }
-        
+
         setSelectedAppointment(null);
       } else {
         const error = await response.json();
@@ -867,120 +880,120 @@ if (discountInfo) {
       console.error('Complete appointment error:', error);
       alert('Randevu tamamlanarkən xəta baş verdi');
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
- const openEditModal = (appointment) => {
-  setSelectedAppointment(appointment);
-  setFormData({
-    customer: appointment.customer._id,
-    masseur: appointment.masseur._id,
-    massageType: appointment.massageType._id,
-    duration: appointment.duration.toString(),
-    price: appointment.price, 
-    startTime: new Date(appointment.startTime).toTimeString().slice(0, 5),
-    notes: appointment.notes || '',
-    giftCard: null,
-    advancePayment: appointment.advancePayment || { amount: 0, paymentMethod: '' }
-  });
-  setSelectedCustomer(appointment.customer);
-  setSearchPhone(appointment.customer.phone);
-  setShowEditModal(true);
-};
-const updateAppointment = async () => {
-  if (!selectedAppointment) return;
+  const openEditModal = (appointment) => {
+    setSelectedAppointment(appointment);
+    setFormData({
+      customer: appointment.customer._id,
+      masseur: appointment.masseur._id,
+      massageType: appointment.massageType._id,
+      duration: appointment.duration.toString(),
+      price: appointment.price,
+      startTime: new Date(appointment.startTime).toTimeString().slice(0, 5),
+      notes: appointment.notes || '',
+      giftCard: null,
+      advancePayment: appointment.advancePayment || { amount: 0, paymentMethod: '' }
+    });
+    setSelectedCustomer(appointment.customer);
+    setSearchPhone(appointment.customer.phone);
+    setShowEditModal(true);
+  };
+  const updateAppointment = async () => {
+    if (!selectedAppointment) return;
 
-  try {
-    const token = getToken();
-    const [hour, minute] = formData.startTime.split(':');
-    
-    const startTime = new Date(selectedDate);
-    startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
-    const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
+    try {
+      const token = getToken();
+      const [hour, minute] = formData.startTime.split(':');
 
-    // ← ENDİRİM MÖVZUSU BURADA DƏYIŞDİ ←
-    let finalPrice = formData.price;
-    let discountInfo = null;
+      const startTime = new Date(selectedDate);
+      startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
+      const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
 
-    // ƏGƏR ƏVVƏLCƏ ENDİRİM TƏTBİQ EDİLMİŞSƏ, ONUN PAYINI SAXLA
-    if (selectedAppointment.discountApplied && selectedAppointment.discount) {
-      // Əvvəlki endirimi istifadə et
-      discountInfo = selectedAppointment.discount;
-      
-      // LAKIN: Qiymət əslində dəyişdiyində (masaj növü/müddət dəyişdiyində)
-      // yeni əslı qiymətə köhnə endirim faizini tətbiq et
-      const massageType = massageTypes.find(mt => mt._id === formData.massageType);
-      if (massageType) {
-        const duration = massageType.durations.find(d => d.minutes === parseInt(formData.duration));
-        const newOriginalPrice = duration ? duration.price : formData.price;
-        
-        // Əgər qiymət əslində dəyişdiyisə
-        if (newOriginalPrice !== selectedAppointment.discount.originalPrice) {
-          const oldDiscountPercent = selectedAppointment.discount.percent;
-          const newDiscountAmount = (newOriginalPrice * oldDiscountPercent) / 100;
-          finalPrice = newOriginalPrice - newDiscountAmount;
-          
-          discountInfo = {
-            percent: oldDiscountPercent,
-            amount: newDiscountAmount,
-            originalPrice: newOriginalPrice,
-            reason: selectedAppointment.discount.reason
-          };
+      // ← ENDİRİM MÖVZUSU BURADA DƏYIŞDİ ←
+      let finalPrice = formData.price;
+      let discountInfo = null;
+
+      // ƏGƏR ƏVVƏLCƏ ENDİRİM TƏTBİQ EDİLMİŞSƏ, ONUN PAYINI SAXLA
+      if (selectedAppointment.discountApplied && selectedAppointment.discount) {
+        // Əvvəlki endirimi istifadə et
+        discountInfo = selectedAppointment.discount;
+
+        // LAKIN: Qiymət əslində dəyişdiyində (masaj növü/müddət dəyişdiyində)
+        // yeni əslı qiymətə köhnə endirim faizini tətbiq et
+        const massageType = massageTypes.find(mt => mt._id === formData.massageType);
+        if (massageType) {
+          const duration = massageType.durations.find(d => d.minutes === parseInt(formData.duration));
+          const newOriginalPrice = duration ? duration.price : formData.price;
+
+          // Əgər qiymət əslində dəyişdiyisə
+          if (newOriginalPrice !== selectedAppointment.discount.originalPrice) {
+            const oldDiscountPercent = selectedAppointment.discount.percent;
+            const newDiscountAmount = (newOriginalPrice * oldDiscountPercent) / 100;
+            finalPrice = newOriginalPrice - newDiscountAmount;
+
+            discountInfo = {
+              percent: oldDiscountPercent,
+              amount: newDiscountAmount,
+              originalPrice: newOriginalPrice,
+              reason: selectedAppointment.discount.reason
+            };
+          }
         }
       }
-    }
 
-    const updateData = {
-      customer: formData.customer,
-      masseur: formData.masseur,
-      massageType: formData.massageType,
-      duration: parseInt(formData.duration),
-      price: finalPrice,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      notes: formData.notes,
-      discountApplied: selectedAppointment.discountApplied // ← BU SƏTRİ ƏLAVƏ EDIN
-    };
+      const updateData = {
+        customer: formData.customer,
+        masseur: formData.masseur,
+        massageType: formData.massageType,
+        duration: parseInt(formData.duration),
+        price: finalPrice,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        notes: formData.notes,
+        discountApplied: selectedAppointment.discountApplied // ← BU SƏTRİ ƏLAVƏ EDIN
+      };
 
-    if (discountInfo) {
-      updateData.discount = discountInfo;
-    }
-
-    const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(updateData)
-    });
-
-    if (response.ok) {
-      await fetchDayAppointments();
-      setShowEditModal(false);
-      resetForm();
-      
-      let successMessage = 'Randevu uğurla yeniləndi!';
-      
       if (discountInfo) {
-        successMessage += `\n\n📊 Qiymət Məlumatı:`;
-        successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
-        successMessage += `\n• Endirim (${discountInfo.percent}%): -${discountInfo.amount.toFixed(2)} AZN`;
-        successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
-        successMessage += `\n• Səbəb: ${discountInfo.reason}`;
+        updateData.discount = discountInfo;
       }
-      
-      alert(successMessage);
-    } else {
-      const error = await response.json();
-      alert('Xəta: ' + (error.message || 'Randevu yenilənmədi'));
+
+      const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        await fetchDayAppointments();
+        setShowEditModal(false);
+        resetForm();
+
+        let successMessage = 'Randevu uğurla yeniləndi!';
+
+        if (discountInfo) {
+          successMessage += `\n\n📊 Qiymət Məlumatı:`;
+          successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
+          successMessage += `\n• Endirim (${discountInfo.percent}%): -${discountInfo.amount.toFixed(2)} AZN`;
+          successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
+          successMessage += `\n• Səbəb: ${discountInfo.reason}`;
+        }
+
+        alert(successMessage);
+      } else {
+        const error = await response.json();
+        alert('Xəta: ' + (error.message || 'Randevu yenilənmədi'));
+      }
+    } catch (error) {
+      console.error('Update appointment error:', error);
+      alert('Randevu yenilərkən xəta baş verdi');
     }
-  } catch (error) {
-    console.error('Update appointment error:', error);
-    alert('Randevu yenilərkən xəta baş verdi');
-  }
-};
+  };
 
 
   const resetForm = () => {
@@ -1065,15 +1078,15 @@ const updateAppointment = async () => {
 
   if (!mounted || loading) {
     return (<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Yüklənir...</div>
-      </div>
+      <div>Yüklənir...</div>
+    </div>
     );
   }
 
   if (!userBranch) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div style={{ color: '#ef4444'}}>Filial məlumatı tapılmadı</div>
+        <div style={{ color: '#ef4444' }}>Filial məlumatı tapılmadı</div>
       </div>
     );
   }
@@ -1093,8 +1106,8 @@ const updateAppointment = async () => {
             <ChevronLeft size={20} />
             Əvvəlki
           </button>
-          
-          <div 
+
+          <div
             onClick={() => setShowCalendar(!showCalendar)}
             style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', backgroundColor: '#667eea', borderRadius: '8px', color: 'white', cursor: 'pointer' }}
           >
@@ -1104,7 +1117,7 @@ const updateAppointment = async () => {
 
           {showCalendar && (
             <>
-              <div 
+              <div
                 onClick={() => setShowCalendar(false)}
                 style={{
                   position: 'fixed',
@@ -1192,12 +1205,12 @@ const updateAppointment = async () => {
                   {Array.from({ length: getDaysInMonth(calendarDate).startingDayOfWeek === 0 ? 6 : getDaysInMonth(calendarDate).startingDayOfWeek - 1 }).map((_, idx) => (
                     <div key={`empty-${idx}`} style={{ padding: '8px' }}></div>
                   ))}
-                  
+
                   {Array.from({ length: getDaysInMonth(calendarDate).daysInMonth }).map((_, idx) => {
                     const day = idx + 1;
                     const isToday = new Date().toDateString() === new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day).toDateString();
                     const isSelected = selectedDate.toDateString() === new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day).toDateString();
-                    
+
                     return (
                       <button
                         key={day}
@@ -1258,7 +1271,7 @@ const updateAppointment = async () => {
               </div>
             </>
           )}
-          
+
           <button onClick={() => changeDate(1)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', border: '1px solid #e2e8f0', backgroundColor: 'white', borderRadius: '8px', cursor: 'pointer' }}>
             Növbəti
             <ChevronRight size={20} />
@@ -1290,14 +1303,14 @@ const updateAppointment = async () => {
       ) : (
         <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: `120px repeat(${masseurs.length + blockedMasseursForToday.length}, 1fr)`, gap: '1px', backgroundColor: '#e2e8f0' }}>
-            
+
             <div style={{ padding: '16px', backgroundColor: '#f1f5f9', fontWeight: '600', color: '#475569', textAlign: 'center', position: 'sticky', left: 0, zIndex: 10 }}>Saat</div>
-            
+
             {masseurs.map((masseur) => (
               <div key={masseur._id} style={{ padding: '16px', backgroundColor: '#667eea', color: 'white', textAlign: 'center', position: 'relative' }}>
                 <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{masseur.name}</div>
                 <div style={{ fontSize: '12px', opacity: 0.9 }}>Masajist</div>
-                
+
                 <button
                   onClick={() => setShowMasseurMenu(showMasseurMenu === masseur._id ? null : masseur._id)}
                   style={{
@@ -1378,7 +1391,7 @@ const updateAppointment = async () => {
                   {blockInfo?.reason && (
                     <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '2px' }}>{blockInfo.reason}</div>
                   )}
-                  
+
                   <button
                     onClick={() => unblockMasseurForDate(masseur)}
                     style={{
@@ -1413,9 +1426,9 @@ const updateAppointment = async () => {
 
                 {masseurs.map((masseur) => {
                   const appointment = isTimeSlotOccupied(masseur._id, timeSlot);
-                  
+
                   return (
-                    <div 
+                    <div
                       key={`${masseur._id}-${timeSlot}`}
                       style={{
                         padding: '8px',
@@ -1431,63 +1444,63 @@ const updateAppointment = async () => {
                       }}
                       onClick={() => appointment ? openAppointmentModal(appointment) : openAddForm(masseur._id, timeSlot, false)}
                     >
-                    {appointment ? (
-  <div style={{ width: '100%', fontSize: '11px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-      <span style={{ fontWeight: '600', color: '#0284c7', fontSize: '10px' }}>
-        {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
-        {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-      </span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        {appointment.notes && (
-          <div 
-            title={appointment.notes}
-            style={{ 
-              width: '10px', 
-              height: '10px', 
-              borderRadius: '50%', 
-              backgroundColor: '#f59e0b',
-              cursor: 'help'
-            }}
-          />
-        )}
-        <span style={{ color: getStatusDisplay(appointment.status).color }}>
-          {getStatusDisplay(appointment.status).icon}
-        </span>
-      </div>
-    </div>
-    <div style={{ textAlign: 'left' }}>
-      <span style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>{appointment.customer?.name}</span>
-      <span style={{ display: 'block', color: '#64748b', fontSize: '10px', marginBottom: '4px' }}>{appointment.massageType?.name}</span>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: '600', color: '#059669', fontSize: '11px' }}>
-          {appointment.advancePayment?.amount > 0 ? (
-            `${appointment.advancePayment.amount} AZN (BEH)`
-          ) : (
-            `${appointment.price} AZN`
-          )}
-        </span>
-        {appointment.paymentMethod && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            <span style={{ color: getPaymentMethodDisplay(appointment.paymentMethod).color }}>
-              {getPaymentMethodDisplay(appointment.paymentMethod).icon}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-) : (
-  <div style={{ opacity: 0.5 }}>
-    <Plus size={16} color="#9ca3af" />
-  </div>
-)}
+                      {appointment ? (
+                        <div style={{ width: '100%', fontSize: '11px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: '600', color: '#0284c7', fontSize: '10px' }}>
+                              {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} -
+                              {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {appointment.notes && (
+                                <div
+                                  title={appointment.notes}
+                                  style={{
+                                    width: '10px',
+                                    height: '10px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#f59e0b',
+                                    cursor: 'help'
+                                  }}
+                                />
+                              )}
+                              <span style={{ color: getStatusDisplay(appointment.status).color }}>
+                                {getStatusDisplay(appointment.status).icon}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'left' }}>
+                            <span style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>{appointment.customer?.name}</span>
+                            <span style={{ display: 'block', color: '#64748b', fontSize: '10px', marginBottom: '4px' }}>{appointment.massageType?.name}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: '600', color: '#059669', fontSize: '11px' }}>
+                                {appointment.advancePayment?.amount > 0 ? (
+                                  `${appointment.advancePayment.amount} AZN (BEH)`
+                                ) : (
+                                  `${appointment.price} AZN`
+                                )}
+                              </span>
+                              {appointment.paymentMethod && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                  <span style={{ color: getPaymentMethodDisplay(appointment.paymentMethod).color }}>
+                                    {getPaymentMethodDisplay(appointment.paymentMethod).icon}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ opacity: 0.5 }}>
+                          <Plus size={16} color="#9ca3af" />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
 
                 {blockedMasseursForToday.map((masseur) => (
-                  <div 
+                  <div
                     key={`${masseur._id}-${timeSlot}-blocked`}
                     style={{
                       padding: '8px',
@@ -1521,7 +1534,7 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
               {/* Gift Card Section */}
               <div style={{ marginBottom: '20px' }}>
@@ -1550,10 +1563,10 @@ const updateAppointment = async () => {
                     }}
                     placeholder="Hədiyyə kartı nömrəsi"
                   />
-                  
+
                   {validatingGiftCard && <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '4px' }}>Yoxlanılır...</div>}
                   {giftCardError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>{giftCardError}</div>}
-                  
+
                   {formData.giftCard && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#ecfdf5', border: '1px solid #10b981', borderRadius: '6px', marginTop: '8px' }}>
                       <CheckCircle size={16} />
@@ -1576,12 +1589,12 @@ const updateAppointment = async () => {
                   <User size={16} style={{ marginRight: '6px' }} />
                   Müştəri:
                 </label>
-                
+
                 {selectedCustomer ? (
                   <div style={{ padding: '12px', backgroundColor: '#ecfdf5', border: '1px solid #10b981', borderRadius: '8px', marginBottom: '8px' }}>
                     <div style={{ fontWeight: '500', color: '#059669' }}>{selectedCustomer.name}</div>
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>{selectedCustomer.phone}</div>
-                    <button 
+                    <button
                       onClick={() => {
                         setSelectedCustomer(null);
                         setFormData(prev => ({ ...prev, customer: '' }));
@@ -1606,7 +1619,7 @@ const updateAppointment = async () => {
                       style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
                       placeholder="Telefon və ya ad ilə axtar"
                     />
-                    
+
                     {showCustomerDropdown && foundCustomers.length > 0 && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
                         {foundCustomers.map((customer) => (
@@ -1623,7 +1636,7 @@ const updateAppointment = async () => {
                         ))}
                       </div>
                     )}
-                    
+
                     <button
                       onClick={() => setShowCustomerForm(true)}
                       style={{ width: '100%', marginTop: '8px', padding: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
@@ -1747,14 +1760,14 @@ const updateAppointment = async () => {
                           cursor: 'pointer',
                           transition: 'all 0.2s'
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#667eea';
-                          e.currentTarget.style.backgroundColor = '#eff6ff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '#e5e7eb';
-                          e.currentTarget.style.backgroundColor = '#f8fafc';
-                        }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#667eea';
+                            e.currentTarget.style.backgroundColor = '#eff6ff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                            e.currentTarget.style.backgroundColor = '#f8fafc';
+                          }}
                         >
                           <input
                             type="file"
@@ -1856,47 +1869,47 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Müştəri:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{selectedAppointment.customer?.name}</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Telefon:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{selectedAppointment.customer?.phone}</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Masajist:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{selectedAppointment.masseur?.name}</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Masaj Növü:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{selectedAppointment.massageType?.name}</span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Başlanğıc:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
                   {new Date(selectedAppointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Bitmə:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
                   {new Date(selectedAppointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Müddət:</span>
                 <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{selectedAppointment.duration} dəqiqə</span>
               </div>
-              
+
               {selectedAppointment.advancePayment?.amount > 0 ? (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
@@ -1915,7 +1928,7 @@ const updateAppointment = async () => {
                     <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Ümumi qiymət:</span>
                     <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{selectedAppointment.price} AZN</span>
                   </div>
-                  
+
                   {selectedAppointment.advancePayment?.receiptImage?.url && (
                     <div style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -1951,7 +1964,7 @@ const updateAppointment = async () => {
                   <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>{selectedAppointment.price} AZN</span>
                 </div>
               )}
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Status:</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2001,7 +2014,7 @@ const updateAppointment = async () => {
                       <Edit size={16} />
                       Redaktə Et
                     </button>
-                    
+
                     {selectedAppointment.advancePayment?.amount > 0 && !selectedAppointment.advancePayment?.receiptImage?.url && (
                       <button
                         onClick={() => {
@@ -2035,23 +2048,23 @@ const updateAppointment = async () => {
                       {selectedAppointment.advancePayment?.amount > 0 ? 'Qalan məbləği ödə:' : 'Ödəniş et:'}
                     </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
-                      <button 
+                      <button
                         onClick={() => completeAppointment('cash')}
                         style={{ flex: 1, padding: '16px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         <Banknote size={16} />
                         Nağd
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={() => completeAppointment('card')}
                         style={{ flex: 1, padding: '16px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         <CreditCard size={16} />
                         Kart
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={() => completeAppointment('terminal')}
                         style={{ flex: 1, padding: '16px', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
@@ -2083,9 +2096,9 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div style={{ padding: '20px' }}>
-              <div style={{ 
+              <div style={{
                 marginBottom: '16px',
                 border: '2px dashed #e5e7eb',
                 borderRadius: '8px',
@@ -2095,14 +2108,14 @@ const updateAppointment = async () => {
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#667eea';
-                e.currentTarget.style.backgroundColor = '#eff6ff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#e5e7eb';
-                e.currentTarget.style.backgroundColor = '#f8fafc';
-              }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.backgroundColor = '#eff6ff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
               >
                 <input
                   type="file"
@@ -2118,32 +2131,32 @@ const updateAppointment = async () => {
                 </label>
               </div>
 
-            {receiptModalPreview && (
-  <div style={{ marginBottom: '16px', position: 'relative' }}>
-    <img src={receiptModalPreview} alt="Receipt Preview" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
-    <button
-      onClick={() => {
-        setReceiptModalFile(null);
-        setReceiptModalPreview(null);
-      }}
-      style={{
-        position: 'absolute',
-        top: '8px',
-        right: '8px',
-        padding: '8px',
-        backgroundColor: '#ef4444',
-        color: 'white',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center'
-      }}
-    >
-      <X size={16} />
-    </button>
-  </div>
-)}
+              {receiptModalPreview && (
+                <div style={{ marginBottom: '16px', position: 'relative' }}>
+                  <img src={receiptModalPreview} alt="Receipt Preview" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                  <button
+                    onClick={() => {
+                      setReceiptModalFile(null);
+                      setReceiptModalPreview(null);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      padding: '8px',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={uploadReceiptForAppointment}
@@ -2183,17 +2196,17 @@ const updateAppointment = async () => {
 
       {/* Receipt View Modal */}
       {showReceiptViewModal && receiptViewUrl && (
-        <div 
-          style={{ 
-            position: 'fixed', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            bottom: 0, 
-            backgroundColor: 'rgba(0,0,0,0.8)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             zIndex: 1000,
             padding: '20px'
           }}
@@ -2202,11 +2215,11 @@ const updateAppointment = async () => {
             setReceiptViewUrl(null);
           }}
         >
-          <div 
-            style={{ 
-              backgroundColor: 'white', 
-              borderRadius: '12px', 
-              maxWidth: '800px', 
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              maxWidth: '800px',
               maxHeight: '90vh',
               width: '100%',
               overflow: 'hidden',
@@ -2214,24 +2227,24 @@ const updateAppointment = async () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              padding: '16px 20px', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
               borderBottom: '1px solid #e2e8f0',
               backgroundColor: 'white'
             }}>
               <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Qəbz Şəkli</h3>
-              <button 
+              <button
                 onClick={() => {
                   setShowReceiptViewModal(false);
                   setReceiptViewUrl(null);
-                }} 
-                style={{ 
-                  padding: '8px', 
-                  border: 'none', 
-                  backgroundColor: 'transparent', 
+                }}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
                   cursor: 'pointer',
                   borderRadius: '6px'
                 }}
@@ -2241,25 +2254,25 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
-            <div style={{ 
-              padding: '20px', 
-              maxHeight: 'calc(90vh - 80px)', 
+
+            <div style={{
+              padding: '20px',
+              maxHeight: 'calc(90vh - 80px)',
               overflowY: 'auto',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
               backgroundColor: '#f8fafc'
             }}>
-              <img 
-                src={receiptViewUrl} 
-                alt="Receipt" 
-                style={{ 
-                  maxWidth: '100%', 
+              <img
+                src={receiptViewUrl}
+                alt="Receipt"
+                style={{
+                  maxWidth: '100%',
                   maxHeight: '100%',
                   borderRadius: '8px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                }} 
+                }}
               />
             </div>
           </div>
@@ -2276,7 +2289,7 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
               {/* Customer Section */}
               <div style={{ marginBottom: '20px' }}>
@@ -2284,7 +2297,7 @@ const updateAppointment = async () => {
                   <User size={16} style={{ marginRight: '6px' }} />
                   Müştəri:
                 </label>
-                
+
                 {selectedCustomer ? (
                   <div style={{ padding: '12px', backgroundColor: '#ecfdf5', border: '1px solid #10b981', borderRadius: '8px', marginBottom: '8px' }}>
                     <div style={{ fontWeight: '500', color: '#059669' }}>{selectedCustomer.name}</div>
@@ -2395,7 +2408,7 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div style={{ padding: '20px' }}>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Ad:</label>
@@ -2456,7 +2469,7 @@ const updateAppointment = async () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div style={{ padding: '20px' }}>
               <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#991b1b', marginBottom: '4px' }}>
@@ -2479,17 +2492,17 @@ const updateAppointment = async () => {
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button 
-                  onClick={blockMasseurForDate} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px 20px', 
-                    backgroundColor: '#ef4444', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    fontSize: '14px', 
-                    fontWeight: '500', 
+                <button
+                  onClick={blockMasseurForDate}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -2500,22 +2513,22 @@ const updateAppointment = async () => {
                   <Ban size={16} />
                   Blokla
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setShowBlockModal(false);
                     setSelectedMasseurForBlock(null);
                     setBlockReason('');
-                  }} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px 20px', 
-                    backgroundColor: 'transparent', 
-                    color: '#64748b', 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px', 
-                    fontSize: '14px', 
-                    fontWeight: '500', 
-                    cursor: 'pointer' 
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    backgroundColor: 'transparent',
+                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
                   }}
                 >
                   Ləğv Et

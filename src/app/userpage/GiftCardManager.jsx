@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  Gift, 
-  Plus, 
-  Search, 
-  Edit2, 
-  Eye, 
+import {
+  Gift,
+  Plus,
+  Search,
+  Edit2,
+  Eye,
   Filter,
   Calendar,
   User,
@@ -53,7 +53,7 @@ export default function GiftCardManager() {
       .split('; ')
       .find(row => row.startsWith('authToken='))
       ?.split('=')[1];
-    
+
     return cookieToken || localStorage.getItem('authToken');
   };
 
@@ -158,7 +158,7 @@ export default function GiftCardManager() {
     try {
       setLoading(true);
       const token = getToken();
-      
+
       const response = await fetch(`${API_BASE}/gift-cards/${token}`, {
         method: 'POST',
         headers: {
@@ -284,11 +284,23 @@ export default function GiftCardManager() {
   };
 
   const getStatusBadge = (card) => {
+    // Check if card is used
     if (card.isUsed) {
       return { text: 'İstifadə olunub', color: '#16a34a', bgColor: '#dcfce7' };
-    } else {
-      return { text: 'Aktiv', color: '#3b82f6', bgColor: '#dbeafe' };
     }
+
+    // Check if card is expired (more than 2 months from purchase date)
+    const purchaseDate = new Date(card.purchaseDate);
+    const currentDate = new Date();
+    const twoMonthsInMs = 60 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
+    const timeDifference = currentDate - purchaseDate;
+
+    if (timeDifference > twoMonthsInMs) {
+      return { text: 'Vaxtı keçib', color: '#dc2626', bgColor: '#fee2e2' };
+    }
+
+    // Card is active
+    return { text: 'Aktiv', color: '#3b82f6', bgColor: '#dbeafe' };
   };
 
   const getPaymentMethodText = (method) => {
@@ -316,25 +328,36 @@ export default function GiftCardManager() {
     }
   };
 
+  // Helper function to check if card is expired
+  const isCardExpired = (card) => {
+    if (card.isUsed) return false; // Used cards are not considered expired
+    const purchaseDate = new Date(card.purchaseDate);
+    const currentDate = new Date();
+    const twoMonthsInMs = 60 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
+    return (currentDate - purchaseDate) > twoMonthsInMs;
+  };
+
   // Filter gift cards
   const filteredCards = giftCards.filter(card => {
-    const matchesSearch = 
+    const matchesSearch =
       card.cardNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       card.purchasedBy?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (card.usedBy && card.usedBy.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesStatus = 
+    const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'used' && card.isUsed) ||
-      (statusFilter === 'active' && !card.isUsed);
+      (statusFilter === 'expired' && isCardExpired(card)) ||
+      (statusFilter === 'active' && !card.isUsed && !isCardExpired(card));
 
     return matchesSearch && matchesStatus;
   });
 
   const stats = {
     total: giftCards.length,
-    active: giftCards.filter(c => !c.isUsed).length,
+    active: giftCards.filter(c => !c.isUsed && !isCardExpired(c)).length,
     used: giftCards.filter(c => c.isUsed).length,
+    expired: giftCards.filter(c => isCardExpired(c)).length,
     revenue: giftCards.reduce((sum, c) => sum + c.originalPrice, 0)
   };
 
@@ -346,7 +369,7 @@ export default function GiftCardManager() {
           <Gift size={24} color="#8b5cf6" />
           <div>
             <h2 style={styles.title}>Hədiyyə Kartları</h2>
-          <h2>İşçi : {userData.name}</h2>
+            <h2>İşçi : {userData.name}</h2>
 
             <p style={styles.subtitle}>Hədiyyə kartlarını idarə edin</p>
           </div>
@@ -377,6 +400,10 @@ export default function GiftCardManager() {
         <div style={styles.statCard}>
           <div style={styles.statNumber}>{stats.used}</div>
           <div style={styles.statLabel}>İstifadə olunub</div>
+        </div>
+        <div style={styles.statCard}>
+          <div style={styles.statNumber}>{stats.expired}</div>
+          <div style={styles.statLabel}>Vaxtı keçib</div>
         </div>
         <div style={styles.statCard}>
           <div style={styles.statNumber}>{stats.revenue} ₼</div>
@@ -410,6 +437,7 @@ export default function GiftCardManager() {
             <option value="all">Bütün kartlar</option>
             <option value="active">Aktiv kartlar</option>
             <option value="used">İstifadə olunmuş</option>
+            <option value="expired">Vaxtı keçmiş</option>
           </select>
         </div>
 
@@ -439,7 +467,7 @@ export default function GiftCardManager() {
                 <div key={card._id} style={styles.cardItem}>
                   <div style={styles.cardHeader}>
                     <div style={styles.cardNumber}>{card.cardNumber}</div>
-                    <div 
+                    <div
                       style={{
                         ...styles.statusBadge,
                         color: status.color,
@@ -684,8 +712,8 @@ export default function GiftCardManager() {
                 </div>
                 <div style={styles.detailItem}>
                   <strong>Status:</strong>
-                  <span style={{ color: selectedCard.isUsed ? '#16a34a' : '#3b82f6' }}>
-                    {selectedCard.isUsed ? 'İstifadə olunub' : 'Aktiv'}
+                  <span style={{ color: getStatusBadge(selectedCard).color }}>
+                    {getStatusBadge(selectedCard).text}
                   </span>
                 </div>
                 {selectedCard.isUsed && (
