@@ -106,6 +106,16 @@ export default function Cedvel() {
 
   const [selectedMassageIndices, setSelectedMassageIndices] = useState([]);
 
+  // Terminal configuration
+  const [terminalConfig, setTerminalConfig] = useState({
+    ip: '192.168.1.5',
+    port: 5544,
+    enabled: true
+  });
+
+  // Terminal çek çıxarma checkbox
+  const [printTerminalReceiptEnabled, setPrintTerminalReceiptEnabled] = useState(false);
+
 
 
   useEffect(() => {
@@ -753,6 +763,55 @@ export default function Cedvel() {
     }
   };
 
+  const printTerminalReceipt = async (appointmentData) => {
+    if (!terminalConfig.enabled) {
+      console.log('Terminal çek çıxarma deaktivdir');
+      return;
+    }
+
+    try {
+      const token = getToken();
+      const receiptData = {
+        terminalConfig: {
+          ip: terminalConfig.ip,
+          port: terminalConfig.port
+        },
+        receiptData: {
+          organizationName: userBranch?.name || 'THAI HEALTH THERAPY',
+          customerName: 'Müştəri', // Həmişə "Müştəri" göstər
+          massageType: appointmentData.massageType?.name || 'Xidmət',
+          duration: appointmentData.duration,
+          price: appointmentData.price,
+          paymentMethod: 'terminal',
+          date: new Date().toISOString(),
+          appointmentId: appointmentData._id,
+          masseur: appointmentData.masseur?.name || ''
+        }
+      };
+
+      const response = await fetch(`${API_BASE}/receptionist/terminal/print-receipt/${token}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(receiptData)
+      });
+
+      if (response.ok) {
+        console.log('Terminal çeki uğurla çıxarıldı');
+      } else {
+        const error = await response.json();
+        console.error('Terminal çek xətası:', error.message);
+        // Xəta olsa belə, ödəniş qeydə alınır, sadəcə bildiriş göstəririk
+        alert('Diqqət: Ödəniş qeydə alındı, lakin terminal çeki çıxarılmadı. Xəta: ' + (error.message || 'Naməlum xəta'));
+      }
+    } catch (error) {
+      console.error('Terminal çek xətası:', error);
+      alert('Diqqət: Ödəniş qeydə alındı, lakin terminal çeki çıxarılmadı. Terminal ilə əlaqə qurulamadı.');
+    }
+  };
+
   const addAppointment = async () => {
     if (!formData.customer || !formData.masseur || !formData.massageType || !formData.duration) {
       alert('Zəhmət olmasa bütün sahələri doldurun!');
@@ -933,6 +992,14 @@ export default function Cedvel() {
 
       if (response.ok) {
         const result = await response.json();
+
+        // Əgər ödəniş terminal ilə edilibsə VƏ checkbox işarələnibsə, çek çıxart
+        if (paymentMethod === 'terminal' && printTerminalReceiptEnabled) {
+          await printTerminalReceipt({
+            ...selectedAppointment,
+            paymentMethod: 'terminal'
+          });
+        }
 
         await fetchDayAppointments();
         setShowAppointmentModal(false);
@@ -2214,6 +2281,39 @@ export default function Cedvel() {
                   </div>
 
                   <div style={{ marginTop: '16px' }}>
+                    {/* Terminal Çek Checkbox */}
+                    <div style={{
+                      marginBottom: '12px',
+                      padding: '12px',
+                      backgroundColor: '#f8fafc',
+                      borderRadius: '8px',
+                      border: '1px solid #e5e7eb'
+                    }}>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#374151'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={printTerminalReceiptEnabled}
+                          onChange={(e) => setPrintTerminalReceiptEnabled(e.target.checked)}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer',
+                            accentColor: '#8b5cf6'
+                          }}
+                        />
+                        <Monitor size={16} color="#8b5cf6" />
+                        <span>Terminal çek çıxart</span>
+                      </label>
+                    </div>
+
                     <div style={{ fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '12px', textAlign: 'center' }}>
                       {selectedAppointment.advancePayment?.amount > 0 ? 'Qalan məbləği ödə:' : 'Ödəniş et:'}
                     </div>
