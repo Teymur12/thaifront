@@ -842,56 +842,19 @@ export default function Cedvel() {
         return;
       }
 
-      let finalPrice = formData.price;
-      let discountInfo = null;
-
-      const SPECIAL_BRANCH_ID = '68d2693d8b8c7e6256a90bc8';
-      if (userBranch._id === SPECIAL_BRANCH_ID) {
-        const dayOfWeek = startTime.getDay();
-        let discountPercent = 0;
-
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          discountPercent = 10;
-        } else {
-          discountPercent = 25;
-        }
-
-        const originalPrice = formData.price;
-        const discountAmount = (originalPrice * discountPercent) / 100;
-        const priceAfterDiscount = originalPrice - discountAmount;
-
-        if (discountPercent === 10) {
-          finalPrice = Math.round(priceAfterDiscount);
-        } else if (discountPercent === 25) {
-          finalPrice = Math.ceil(priceAfterDiscount);
-        }
-
-        discountInfo = {
-          percent: discountPercent,
-          amount: originalPrice - finalPrice,
-          originalPrice: originalPrice,
-          reason: dayOfWeek === 0 || dayOfWeek === 6 ? 'Həftə sonu endirimi' : 'Həftə içi endirimi'
-        };
-      }
-
       const appointmentData = {
         customer: formData.customer,
         masseur: formData.masseur,
         branch: userBranch._id,
         massageType: formData.massageType,
         duration: parseInt(formData.duration),
-        price: finalPrice,
+        price: formData.price, // Send the base price, backend will adjust
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         status: 'scheduled',
         notes: formData.notes || '',
-        createdBy: userData.id,
-        discountApplied: !!discountInfo
+        createdBy: userData.id
       };
-
-      if (discountInfo) {
-        appointmentData.discount = discountInfo;
-      }
 
       if (showAdvancePayment && advanceAmount && advanceMethod) {
         appointmentData.advancePayment = {
@@ -949,12 +912,12 @@ export default function Cedvel() {
 
         let successMessage = 'Randevu uğurla əlavə edildi!';
 
-        if (discountInfo) {
+        if (newAppointment.discount) {
           successMessage += `\n\n📊 Qiymət Məlumatı:`;
-          successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
-          successMessage += `\n• Endirim (${discountInfo.percent}%): -${discountInfo.amount.toFixed(2)} AZN`;
-          successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
-          successMessage += `\n• Səbəb: ${discountInfo.reason}`;
+          successMessage += `\n• Orijinal qiymət: ${newAppointment.discount.originalPrice} AZN`;
+          successMessage += `\n• Endirim (${newAppointment.discount.percent}%): -${newAppointment.discount.amount.toFixed(2)} AZN`;
+          successMessage += `\n• Yekun qiymət: ${newAppointment.price.toFixed(2)} AZN`;
+          successMessage += `\n• Səbəb: ${newAppointment.discount.reason}`;
         }
 
         if (showAdvancePayment && advanceAmount) {
@@ -1085,53 +1048,17 @@ export default function Cedvel() {
       startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
       const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
 
-      // ← ENDİRİM MÖVZUSU BURADA DƏYIŞDİ ←
-      let finalPrice = formData.price;
-      let discountInfo = null;
-
-      // ƏGƏR ƏVVƏLCƏ ENDİRİM TƏTBİQ EDİLMİŞSƏ, ONUN PAYINI SAXLA
-      if (selectedAppointment.discountApplied && selectedAppointment.discount) {
-        // Əvvəlki endirimi istifadə et
-        discountInfo = selectedAppointment.discount;
-
-        // LAKIN: Qiymət əslində dəyişdiyində (masaj növü/müddət dəyişdiyində)
-        // yeni əslı qiymətə köhnə endirim faizini tətbiq et
-        const massageType = massageTypes.find(mt => mt._id === formData.massageType);
-        if (massageType) {
-          const duration = massageType.durations.find(d => d.minutes === parseInt(formData.duration));
-          const newOriginalPrice = duration ? duration.price : formData.price;
-
-          // Əgər qiymət əslində dəyişdiyisə
-          if (newOriginalPrice !== selectedAppointment.discount.originalPrice) {
-            const oldDiscountPercent = selectedAppointment.discount.percent;
-            const newDiscountAmount = (newOriginalPrice * oldDiscountPercent) / 100;
-            finalPrice = newOriginalPrice - newDiscountAmount;
-
-            discountInfo = {
-              percent: oldDiscountPercent,
-              amount: newDiscountAmount,
-              originalPrice: newOriginalPrice,
-              reason: selectedAppointment.discount.reason
-            };
-          }
-        }
-      }
-
       const updateData = {
         customer: formData.customer,
         masseur: formData.masseur,
         massageType: formData.massageType,
         duration: parseInt(formData.duration),
-        price: finalPrice,
+        price: formData.price,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         notes: formData.notes,
-        discountApplied: selectedAppointment.discountApplied // ← BU SƏTRİ ƏLAVƏ EDIN
+        discountApplied: selectedAppointment.discountApplied
       };
-
-      if (discountInfo) {
-        updateData.discount = discountInfo;
-      }
 
       const response = await fetch(`${API_BASE}/receptionist/appointments/${selectedAppointment._id}`, {
         method: 'PUT',
@@ -1143,18 +1070,19 @@ export default function Cedvel() {
       });
 
       if (response.ok) {
+        const updatedAppointment = await response.json();
         await fetchDayAppointments();
         setShowEditModal(false);
         resetForm();
 
         let successMessage = 'Randevu uğurla yeniləndi!';
 
-        if (discountInfo) {
+        if (updatedAppointment.discount) {
           successMessage += `\n\n📊 Qiymət Məlumatı:`;
-          successMessage += `\n• Orijinal qiymət: ${discountInfo.originalPrice} AZN`;
-          successMessage += `\n• Endirim (${discountInfo.percent}%): -${discountInfo.amount.toFixed(2)} AZN`;
-          successMessage += `\n• Yekun qiymət: ${finalPrice.toFixed(2)} AZN`;
-          successMessage += `\n• Səbəb: ${discountInfo.reason}`;
+          successMessage += `\n• Orijinal qiymət: ${updatedAppointment.discount.originalPrice} AZN`;
+          successMessage += `\n• Endirim (${updatedAppointment.discount.percent}%): -${updatedAppointment.discount.amount.toFixed(2)} AZN`;
+          successMessage += `\n• Yekun qiymət: ${updatedAppointment.price.toFixed(2)} AZN`;
+          successMessage += `\n• Səbəb: ${updatedAppointment.discount.reason}`;
         }
 
         alert(successMessage);
