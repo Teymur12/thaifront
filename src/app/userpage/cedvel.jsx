@@ -113,8 +113,15 @@ export default function Cedvel() {
     enabled: true
   });
 
+  // Package Auto-Use States
+  const [customerPackages, setCustomerPackages] = useState([]);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+
   // Terminal çek çıxarma checkbox
   const [printTerminalReceiptEnabled, setPrintTerminalReceiptEnabled] = useState(false);
+
+
+
 
 
 
@@ -138,7 +145,7 @@ export default function Cedvel() {
     return Cookies.get('authToken');
   };
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://thaiback.onrender.com/api';
+  const API_BASE = 'https://thaiback.onrender.com/api';
 
   useEffect(() => {
     if (!mounted) return;
@@ -558,11 +565,37 @@ export default function Cedvel() {
     }
   };
 
+
   const selectCustomer = (customer) => {
     setSelectedCustomer(customer);
-    setFormData(prev => ({ ...prev, customer: customer._id }));
     setSearchPhone(customer.phone);
+    setFoundCustomers([]);
     setShowCustomerDropdown(false);
+    setShowCustomerForm(false);
+    setFormData(prev => ({ ...prev, customer: customer._id }));
+
+    // Packages logic
+    setCustomerPackages([]);
+    setSelectedPackage(null);
+    fetchCustomerPackages(customer._id);
+  };
+
+  const fetchCustomerPackages = async (customerId) => {
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/packages/customer/${customerId}/${token}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const pkgs = await response.json();
+        setCustomerPackages(pkgs);
+      } else {
+        setCustomerPackages([]);
+      }
+    } catch (error) {
+      console.error('Fetch packages error:', error);
+      setCustomerPackages([]);
+    }
   };
 
   const addCustomer = async () => {
@@ -907,6 +940,23 @@ export default function Cedvel() {
           }
         }
 
+        // Handle Package Usage
+        if (selectedPackage) {
+          try {
+            await fetch(`${API_BASE}/packages/${selectedPackage._id}/use/${token}`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ appointmentId: newAppointment._id })
+            });
+          } catch (packageError) {
+            console.error('Package usage error:', packageError);
+            alert('Randevu yaradıldı, ancaq paketdən gediş silinmədi!');
+          }
+        }
+
         await fetchDayAppointments();
         resetForm();
 
@@ -1124,6 +1174,8 @@ export default function Cedvel() {
     setReceiptFile(null);
     setReceiptPreview(null);
     setSelectedMassageIndices([]);
+    setSelectedPackage(null);
+    setCustomerPackages([]);
   };
 
   const isTimeSlotOccupied = (masseurId, time) => {
@@ -1788,6 +1840,74 @@ export default function Cedvel() {
                   </div>
                 )}
               </div>
+
+              {/* Packages Section */}
+              {customerPackages.length > 0 && (
+                <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '600', color: '#7c3aed', marginBottom: '12px' }}>
+                    <Gift size={18} style={{ marginRight: '6px' }} />
+                    Mövcud Paketlər:
+                  </label>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {customerPackages.map(pkg => (
+                      <div
+                        key={pkg._id}
+                        onClick={() => {
+                          if (selectedPackage?._id === pkg._id) {
+                            // Deselect
+                            setSelectedPackage(null);
+                            if (formData.duration) handleDurationChange(formData.duration);
+                          } else {
+                            // Select
+                            setSelectedPackage(pkg);
+                            const mTypeId = typeof pkg.massageType === 'object' ? pkg.massageType._id : pkg.massageType;
+
+                            // Auto-set form
+                            setFormData(prev => ({
+                              ...prev,
+                              massageType: mTypeId,
+                              duration: pkg.duration.toString(),
+                              price: 0,
+                              paymentMethod: 'package'
+                            }));
+                          }
+                        }}
+                        style={{
+                          padding: '12px',
+                          backgroundColor: selectedPackage?._id === pkg._id ? '#7c3aed' : 'white',
+                          color: selectedPackage?._id === pkg._id ? 'white' : '#1f2937',
+                          border: `1px solid ${selectedPackage?._id === pkg._id ? '#7c3aed' : '#e5e7eb'}`,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                            {pkg.massageType?.name || 'Paket'}
+                          </div>
+                          <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                            {pkg.duration} dəq • Qalıq: <b>{pkg.remainingVisits}</b> gediş
+                          </div>
+                        </div>
+                        {selectedPackage?._id === pkg._id && (
+                          <CheckCircle size={20} color="white" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedPackage && (
+                    <div style={{ marginTop: '12px', fontSize: '12px', color: '#6d28d9', fontStyle: 'italic' }}>
+                      * Paket seçildiyi üçün qiymət 0 AZN olacaq.
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Massage Type */}
               <div style={{ marginBottom: '20px' }}>
@@ -2736,6 +2856,8 @@ export default function Cedvel() {
           </div>
         </div>
       )}
+
+
 
       {/* WhatsApp Modal */}
       {showWhatsAppModal && (

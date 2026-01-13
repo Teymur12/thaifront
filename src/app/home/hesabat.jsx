@@ -16,7 +16,7 @@ export default function GundelikHesabat() {
   const fetchDailyReport = async (date) => {
     setLoading(true);
     setError('');
-    
+
     try {
       const token = getToken();
       const response = await fetch(`https://thaiback.onrender.com/api/admin/reports/daily/${date}/${token}`, {
@@ -31,7 +31,7 @@ export default function GundelikHesabat() {
       }
 
       const data = await response.json();
-      
+
       setReportData(data);
     } catch (err) {
       setError(err.message);
@@ -58,17 +58,19 @@ export default function GundelikHesabat() {
     });
   };
 
-  // Ümumi statistikalar (Gift card sales və BEH daxil)
+  // Ümumi statistikalar (Gift card sales, Package sales və BEH daxil)
   const getTotalStats = () => {
     if (!reportData || !reportData.branches) {
-      return { 
+      return {
         totalRevenue: 0,
         totalAdvancePayments: 0,
         totalAdvanceCount: 0,
-        totalGiftCardSales: 0, 
+        totalGiftCardSales: 0,
         totalGiftCardCount: 0,
-        totalExpenses: 0, 
-        totalAppointments: 0, 
+        totalPackageSales: 0,
+        totalPackageCount: 0,
+        totalExpenses: 0,
+        totalAppointments: 0,
         netProfit: 0,
         totalCombinedRevenue: 0
       };
@@ -80,25 +82,29 @@ export default function GundelikHesabat() {
     const totalAdvanceCount = branches.reduce((sum, branch) => sum + (branch.advancePayments?.count || 0), 0);
     const totalGiftCardSales = branches.reduce((sum, branch) => sum + (branch.giftCardSales?.total || 0), 0);
     const totalGiftCardCount = branches.reduce((sum, branch) => sum + (branch.giftCardSales?.count || 0), 0);
+    const totalPackageSales = branches.reduce((sum, branch) => sum + (branch.packageSales?.total || 0), 0);
+    const totalPackageCount = branches.reduce((sum, branch) => sum + (branch.packageSales?.count || 0), 0);
     const totalExpenses = branches.reduce((sum, branch) => sum + branch.expenses.total, 0);
     const totalAppointments = branches.reduce((sum, branch) => sum + branch.appointments, 0);
-    const totalCombinedRevenue = totalRevenue + totalAdvancePayments + totalGiftCardSales;
+    const totalCombinedRevenue = totalRevenue + totalAdvancePayments + totalGiftCardSales + totalPackageSales;
     const netProfit = totalCombinedRevenue - totalExpenses;
 
-    return { 
+    return {
       totalRevenue,
       totalAdvancePayments,
       totalAdvanceCount,
-      totalGiftCardSales, 
+      totalGiftCardSales,
       totalGiftCardCount,
-      totalExpenses, 
-      totalAppointments, 
+      totalPackageSales,
+      totalPackageCount,
+      totalExpenses,
+      totalAppointments,
       netProfit,
       totalCombinedRevenue
     };
   };
 
-  const { totalRevenue, totalAdvancePayments, totalAdvanceCount, totalGiftCardSales, totalGiftCardCount, totalExpenses, totalAppointments, netProfit, totalCombinedRevenue } = getTotalStats();
+  const { totalRevenue, totalAdvancePayments, totalAdvanceCount, totalGiftCardSales, totalGiftCardCount, totalPackageSales, totalPackageCount, totalExpenses, totalAppointments, netProfit, totalCombinedRevenue } = getTotalStats();
 
   const getPaymentMethodIcon = (method) => {
     switch (method) {
@@ -150,7 +156,7 @@ export default function GundelikHesabat() {
             <p style={styles.headerSubtitle}>{formatTarix(selectedDate)}</p>
           </div>
         </div>
-        
+
         <div style={styles.dateSelector}>
           <input
             type="date"
@@ -198,6 +204,17 @@ export default function GundelikHesabat() {
             <h3 style={styles.statTitle}>Hədiyyə Kartları</h3>
             <p style={styles.statValue}>{formatMebleg(totalGiftCardSales)}</p>
             <p style={styles.statSubValue}>{totalGiftCardCount} ədəd</p>
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={styles.statIcon}>
+            <Gift size={24} color="#c026d3" />
+          </div>
+          <div style={styles.statContent}>
+            <h3 style={styles.statTitle}>Paket Satışları</h3>
+            <p style={styles.statValue}>{formatMebleg(totalPackageSales)}</p>
+            <p style={styles.statSubValue}>{totalPackageCount} ədəd</p>
           </div>
         </div>
 
@@ -251,7 +268,7 @@ export default function GundelikHesabat() {
       {reportData && reportData.branches && Object.keys(reportData.branches).length > 0 ? (
         <div style={styles.branchesContainer}>
           <h2 style={styles.sectionTitle}>Filial üzrə Hesabat</h2>
-          
+
           <div style={styles.branchesGrid}>
             {Object.values(reportData.branches).map((branch, index) => (
               <div key={index} style={styles.branchCard}>
@@ -404,6 +421,54 @@ export default function GundelikHesabat() {
                   </div>
                 )}
 
+                {/* Paket Satışları */}
+                {branch.packageSales && branch.packageSales.total > 0 && (
+                  <div style={styles.branchSection}>
+                    <h4 style={styles.branchSectionTitle}>
+                      <Gift size={16} color="#c026d3" />
+                      Paket Satışları
+                    </h4>
+                    <div style={styles.revenueGrid}>
+                      {branch.packageSales.cash > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('cash')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Nağd</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.packageSales.cash)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {branch.packageSales.card > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('card')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Bank Kartı</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.packageSales.card)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {branch.packageSales.terminal > 0 && (
+                        <div style={styles.paymentItem}>
+                          <div style={styles.paymentIcon}>
+                            {getPaymentMethodIcon('terminal')}
+                          </div>
+                          <div>
+                            <span style={styles.paymentLabel}>Terminal</span>
+                            <span style={styles.paymentAmount}>{formatMebleg(branch.packageSales.terminal)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ ...styles.totalGiftCard, backgroundColor: '#fdf4ff', color: '#c026d3' }}>
+                      <strong>Paket Satışları: {formatMebleg(branch.packageSales.total)} ({branch.packageSales.count} ədəd)</strong>
+                    </div>
+                  </div>
+                )}
+
                 {/* Xərc Məlumatları */}
                 {branch.expenses.total > 0 && (
                   <div style={styles.branchSection}>
@@ -432,10 +497,10 @@ export default function GundelikHesabat() {
                     <span>{branch.appointments} görüş</span>
                   </div>
                   <div style={styles.totalRevenueBadge}>
-                    Ümumi: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.advancePayments?.total || 0) + (branch.giftCardSales?.total || 0))))}
+                    Ümumi: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.advancePayments?.total || 0) + (branch.giftCardSales?.total || 0) + (branch.packageSales?.total || 0))))}
                   </div>
                   <div style={styles.netProfitBadge}>
-                    Xalis: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.advancePayments?.total || 0) + (branch.giftCardSales?.total || 0))) - branch.expenses.total)}
+                    Xalis: {formatMebleg((branch.totalRevenue || (branch.revenue.total + (branch.advancePayments?.total || 0) + (branch.giftCardSales?.total || 0) + (branch.packageSales?.total || 0))) - branch.expenses.total)}
                   </div>
                 </div>
               </div>

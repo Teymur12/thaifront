@@ -1,12 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Users, 
-  UserCheck, 
-  BarChart3, 
-  Grid3X3, 
-  Menu, 
+import {
+  Building2,
+  Users,
+  UserCheck,
+  BarChart3,
+  Grid3X3,
+  Menu,
   X,
   Home,
   ChevronLeft,
@@ -20,7 +20,8 @@ import Cedvel from '../userpage/cedvel.jsx';
 import GiftCardManager from './GiftCardManager.jsx';
 import WeeklyBlockManager from './WeeklyBlockManager.jsx';
 import CompleteAppointment from './completePaymentModal.jsx';
-import CustomerHistory from './CustomerHistory.jsx';  // ✅ YENİ COMPONENT
+import CustomerHistory from './CustomerHistory.jsx';
+import PackageSale from './PackageSale.jsx';  // ✅ YENİ COMPONENT
 import Cookies from 'js-cookie';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://thaiback.onrender.com/api';
@@ -45,30 +46,36 @@ export default function Sidebar() {
       message: 'Salam! Bu Cədvəl bölməsidir.'
     },
     {
-     id: 'giftcards',
-     label: 'Hədiyyə Kartları',
-     icon: Gift,
-     message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
-   },
-   {
-     id: 'blockeddays',
-     label: 'İstirahət günləri',
-     icon: Users,
-     message: 'Salam! Bu İstirahət günləri bölməsidir.'
-   },
-   {
-     id: 'complete',
-     label: 'Randevulari tamamla',
-     icon: Grid3X3,
-     message: 'Salam! Bu odenis qeyd etme bölməsidir.'
-   },
-   // ✅ YENİ MENU ITEM
-   {
-     id: 'customer-history',
-     label: 'Müştəri Tarixçəsi',
-     icon: History,
-     message: 'Müştərilərin əvvəlki randevularını görün'
-   }
+      id: 'giftcards',
+      label: 'Hədiyyə Kartları',
+      icon: Gift,
+      message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
+    },
+    {
+      id: 'blockeddays',
+      label: 'İstirahət günləri',
+      icon: Users,
+      message: 'Salam! Bu İstirahət günləri bölməsidir.'
+    },
+    {
+      id: 'complete',
+      label: 'Randevulari tamamla',
+      icon: Grid3X3,
+      message: 'Salam! Bu odenis qeyd etme bölməsidir.'
+    },
+    // ✅ YENİ MENU ITEM
+    {
+      id: 'customer-history',
+      label: 'Müştəri Tarixçəsi',
+      icon: History,
+      message: 'Müştərilərin əvvəlki randevularını görün'
+    },
+    {
+      id: 'package-sale',
+      label: 'Paket Satışı',
+      icon: Gift,
+      message: 'Yeni paket satışı'
+    }
   ];
 
   const getToken = () => {
@@ -80,7 +87,7 @@ export default function Sidebar() {
     try {
       setLoading(true);
       const token = getToken();
-      
+
       if (!token) {
         console.error('Token tapılmadı');
         return;
@@ -116,7 +123,7 @@ export default function Sidebar() {
         localStorage.removeItem('userData');
         localStorage.removeItem('token');
       }
-      
+
       document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       window.location.href = '/userlogin';
     } catch (error) {
@@ -140,24 +147,28 @@ export default function Sidebar() {
     if (activeItem === 'cedvel') {
       return <Cedvel />;
     }
-    
+
     if (activeItem === 'giftcards') {
       return <GiftCardManager />;
     }
-    
+
     if (activeItem === 'blockeddays') {
       return <WeeklyBlockManager masseurs={masseurs} loading={loading} />;
     }
-    
+
     if (activeItem === 'complete') {
       return <CompleteAppointment />;
     }
-    
+
     // ✅ YENİ - Müştəri Tarixçəsi
     if (activeItem === 'customer-history') {
       return <CustomerHistory />;
     }
-  
+
+    if (activeItem === 'package-sale') {
+      return <PackageSale />;
+    }
+
     return (
       <div style={styles.content}>
         <div style={styles.contentHeader}>
@@ -168,7 +179,7 @@ export default function Sidebar() {
             {activeItem === 'home' ? 'Dashboarda xoş gəlmisiniz' : `${menuItems.find(item => item.id === activeItem)?.label} bölməsindesiniz`}
           </p>
         </div>
-        
+
         <div style={styles.contentBody}>
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>
@@ -198,7 +209,7 @@ export default function Sidebar() {
               <h2 style={styles.logoText}>User Panel</h2>
             </div>
           )}
-          
+
           <button onClick={toggleSidebar} style={styles.toggleBtn}>
             {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
@@ -209,7 +220,7 @@ export default function Sidebar() {
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeItem === item.id;
-            
+
             return (
               <div key={item.id} style={styles.menuItemWrapper}>
                 <button
@@ -237,7 +248,7 @@ export default function Sidebar() {
                   <IconComponent size={20} />
                   {!isCollapsed && <span style={styles.menuText}>{item.label}</span>}
                 </button>
-                
+
                 {isActive && (
                   <div style={styles.activeIndicator}></div>
                 )}
@@ -304,7 +315,7 @@ const styles = {
     minHeight: '100vh',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
   },
-  
+
   sidebar: {
     position: 'fixed',
     left: 0,
@@ -318,7 +329,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column'
   },
-  
+
   header: {
     padding: '20px',
     borderBottom: '1px solid #e2e8f0',
@@ -327,20 +338,20 @@ const styles = {
     justifyContent: 'space-between',
     minHeight: '80px'
   },
-  
+
   logo: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   logoText: {
     fontSize: '18px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0
   },
-  
+
   toggleBtn: {
     background: '#f1f5f9',
     border: 'none',
@@ -350,7 +361,7 @@ const styles = {
     color: '#64748b',
     transition: 'all 0.2s ease'
   },
-  
+
   nav: {
     flex: 1,
     padding: '20px 0',
@@ -358,12 +369,12 @@ const styles = {
     flexDirection: 'column',
     gap: '4px'
   },
-  
+
   menuItemWrapper: {
     position: 'relative',
     margin: '0 12px'
   },
-  
+
   menuItem: {
     width: '100%',
     display: 'flex',
@@ -378,12 +389,12 @@ const styles = {
     fontSize: '14px',
     fontWeight: '500'
   },
-  
+
   menuText: {
     fontSize: '14px',
     fontWeight: '500'
   },
-  
+
   activeIndicator: {
     position: 'absolute',
     right: '-12px',
@@ -394,18 +405,18 @@ const styles = {
     backgroundColor: '#667eea',
     borderRadius: '2px'
   },
-  
+
   footer: {
     padding: '20px',
     borderTop: '1px solid #e2e8f0'
   },
-  
+
   userInfo: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   avatar: {
     width: '40px',
     height: '40px',
@@ -418,57 +429,57 @@ const styles = {
     fontWeight: '600',
     fontSize: '14px'
   },
-  
+
   userDetails: {
     flex: 1
   },
-  
+
   userName: {
     fontSize: '14px',
     fontWeight: '600',
     color: '#1e293b',
     margin: '0 0 2px 0'
   },
-  
+
   userRole: {
     fontSize: '12px',
     color: '#64748b',
     margin: 0
   },
-  
+
   mainContent: {
     flex: 1,
     transition: 'margin-left 0.3s ease',
     background: '#f8fafc'
   },
-  
+
   content: {
     padding: '30px',
     maxWidth: '1200px'
   },
-  
+
   contentHeader: {
     marginBottom: '30px'
   },
-  
+
   contentTitle: {
     fontSize: '28px',
     fontWeight: '700',
     color: '#1e293b',
     margin: '0 0 8px 0'
   },
-  
+
   contentSubtitle: {
     fontSize: '16px',
     color: '#64748b',
     margin: 0
   },
-  
+
   contentBody: {
     display: 'grid',
     gap: '24px'
   },
-  
+
   card: {
     background: 'white',
     padding: '24px',
@@ -476,14 +487,14 @@ const styles = {
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e2e8f0'
   },
-  
+
   cardTitle: {
     fontSize: '18px',
     fontWeight: '600',
     color: '#1e293b',
     margin: '0 0 12px 0'
   },
-  
+
   cardText: {
     fontSize: '14px',
     color: '#64748b',

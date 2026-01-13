@@ -1,12 +1,12 @@
 'use client'
 import { useState } from 'react';
-import { 
-  Building2, 
-  Users, 
-  UserCheck, 
-  BarChart3, 
-  Grid3X3, 
-  Menu, 
+import {
+  Building2,
+  Users,
+  UserCheck,
+  BarChart3,
+  Grid3X3,
+  Menu,
   X,
   Home,
   ChevronLeft,
@@ -22,6 +22,8 @@ import Hesabat from '../home/hesabat.jsx';
 import Cedvel from '../home/cedvel.jsx';
 import MasajNovleri from './massaj.jsx';
 import GiftCardsAdmin from './GiftCardsAdmin.jsx';
+import PackagesAdmin from './PackagesAdmin.jsx';
+
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true); // 🔹 Başlanğıcda bağlı olsun
@@ -58,6 +60,13 @@ export default function Sidebar() {
       icon: Gift,
       message: 'Salam! Bu Hədiyyə Kartları bölməsidir.'
     },
+
+    {
+      id: 'packages',
+      label: 'Paketlərin İdarəsi',
+      icon: Gift,
+      message: 'Salam! Bu Paketlər bölməsidir.'
+    },
     {
       id: 'hesabat',
       label: 'Hesabat',
@@ -79,11 +88,11 @@ export default function Sidebar() {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('userData');
       }
-      
+
       // Cookie-dən authToken-i sil
       // Cookies.remove('authToken'); // Əgər js-cookie istifadə edirsinizsə
       document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      
+
       // Sayta yönləndirmə və ya login səhifəsinə keçid
       window.location.href = '/adminlogin'; // və ya istədiyiniz səhifə
     } catch (error) {
@@ -99,35 +108,39 @@ export default function Sidebar() {
     setIsCollapsed(!isCollapsed);
   };
 
- const renderContent = () => {
-  if (activeItem === 'filiallar') {
-    return <Filiallar />;
-  }
+  const renderContent = () => {
+    if (activeItem === 'filiallar') {
+      return <Filiallar />;
+    }
 
-  if (activeItem === 'masajistler') {
-    return <Masajistler />;
-  }
+    if (activeItem === 'masajistler') {
+      return <Masajistler />;
+    }
 
-  if (activeItem === 'masaj-novleri') {
-    return <MasajNovleri />;
-  }
+    if (activeItem === 'masaj-novleri') {
+      return <MasajNovleri />;
+    }
 
-  if (activeItem === 'receptions') {
-    return <Reseptionlar />;
-  }
+    if (activeItem === 'receptions') {
+      return <Reseptionlar />;
+    }
 
-  if (activeItem === 'gift-cards') {
-    return <GiftCardsAdmin />;
-  }
+    if (activeItem === 'gift-cards') {
+      return <GiftCardsAdmin />;
+    }
 
-  if (activeItem === 'hesabat') {
-    return <Hesabat />;
-  }
+    if (activeItem === 'packages') {
+      return <PackagesAdmin />;
+    }
 
-  if (activeItem === 'cedvel') {
-    return <Cedvel />;
-  }
-  
+
+    if (activeItem === 'cedvel') {
+      return <Cedvel />;
+    }
+    if (activeItem === 'hesabat') {
+      return <Hesabat />;
+    }
+
     return (
       <div style={styles.content}>
         <div style={styles.contentHeader}>
@@ -138,7 +151,7 @@ export default function Sidebar() {
             Xoş gəlmisiniz! Yan menyudan istədiyiniz bölməni seçin.
           </p>
         </div>
-        
+
         <div style={styles.contentBody}>
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>
@@ -168,7 +181,7 @@ export default function Sidebar() {
               <h2 style={styles.logoText}>Admin Panel</h2>
             </div>
           )}
-          
+
           <button onClick={toggleSidebar} style={styles.toggleBtn}>
             {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
@@ -179,7 +192,7 @@ export default function Sidebar() {
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeItem === item.id;
-            
+
             return (
               <div key={item.id} style={styles.menuItemWrapper}>
                 <button
@@ -207,7 +220,7 @@ export default function Sidebar() {
                   <IconComponent size={20} />
                   {!isCollapsed && <span style={styles.menuText}>{item.label}</span>}
                 </button>
-                
+
                 {/* Active indicator */}
                 {isActive && (
                   <div style={styles.activeIndicator}></div>
@@ -275,7 +288,7 @@ const styles = {
     minHeight: '100vh',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
   },
-  
+
   sidebar: {
     position: 'fixed',
     left: 0,
@@ -289,7 +302,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column'
   },
-  
+
   header: {
     padding: '20px',
     borderBottom: '1px solid #e2e8f0',
@@ -298,20 +311,20 @@ const styles = {
     justifyContent: 'space-between',
     minHeight: '80px'
   },
-  
+
   logo: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   logoText: {
     fontSize: '18px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0
   },
-  
+
   toggleBtn: {
     background: '#f1f5f9',
     border: 'none',
@@ -321,7 +334,7 @@ const styles = {
     color: '#64748b',
     transition: 'all 0.2s ease'
   },
-  
+
   nav: {
     flex: 1,
     padding: '20px 0',
@@ -329,12 +342,12 @@ const styles = {
     flexDirection: 'column',
     gap: '4px'
   },
-  
+
   menuItemWrapper: {
     position: 'relative',
     margin: '0 12px'
   },
-  
+
   menuItem: {
     width: '100%',
     display: 'flex',
@@ -349,12 +362,12 @@ const styles = {
     fontSize: '14px',
     fontWeight: '500'
   },
-  
+
   menuText: {
     fontSize: '14px',
     fontWeight: '500'
   },
-  
+
   activeIndicator: {
     position: 'absolute',
     right: '-12px',
@@ -365,18 +378,18 @@ const styles = {
     backgroundColor: '#667eea',
     borderRadius: '2px'
   },
-  
+
   footer: {
     padding: '20px',
     borderTop: '1px solid #e2e8f0'
   },
-  
+
   userInfo: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   avatar: {
     width: '40px',
     height: '40px',
@@ -389,57 +402,57 @@ const styles = {
     fontWeight: '600',
     fontSize: '14px'
   },
-  
+
   userDetails: {
     flex: 1
   },
-  
+
   userName: {
     fontSize: '14px',
     fontWeight: '600',
     color: '#1e293b',
     margin: '0 0 2px 0'
   },
-  
+
   userRole: {
     fontSize: '12px',
     color: '#64748b',
     margin: 0
   },
-  
+
   mainContent: {
     flex: 1,
     transition: 'margin-left 0.3s ease',
     background: '#f8fafc'
   },
-  
+
   content: {
     padding: '30px',
     maxWidth: '1200px'
   },
-  
+
   contentHeader: {
     marginBottom: '30px'
   },
-  
+
   contentTitle: {
     fontSize: '28px',
     fontWeight: '700',
     color: '#1e293b',
     margin: '0 0 8px 0'
   },
-  
+
   contentSubtitle: {
     fontSize: '16px',
     color: '#64748b',
     margin: 0
   },
-  
+
   contentBody: {
     display: 'grid',
     gap: '24px'
   },
-  
+
   card: {
     background: 'white',
     padding: '24px',
@@ -447,14 +460,14 @@ const styles = {
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e2e8f0'
   },
-  
+
   cardTitle: {
     fontSize: '18px',
     fontWeight: '600',
     color: '#1e293b',
     margin: '0 0 12px 0'
   },
-  
+
   cardText: {
     fontSize: '14px',
     color: '#64748b',

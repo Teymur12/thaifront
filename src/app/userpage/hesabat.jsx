@@ -371,6 +371,7 @@ export default function Hesabat() {
   const [gelirler, setGelirler] = useState([]);
   const [behler, setBehler] = useState([]);
   const [giftCards, setGiftCards] = useState([]);
+  const [packageSales, setPackageSales] = useState([]);
   const [xercler, setXercler] = useState([]);
   const [userData, setUserData] = useState(null);
 
@@ -411,7 +412,13 @@ export default function Hesabat() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchAppointments(), fetchAdvancePayments(), fetchGiftCards(), fetchExpenses()]);
+      await Promise.all([
+        fetchAppointments(),
+        fetchAdvancePayments(),
+        fetchGiftCards(),
+        fetchPackageSales(),
+        fetchExpenses()
+      ]);
     } catch (error) {
       console.error('Data fetch error:', error);
     } finally {
@@ -551,6 +558,32 @@ export default function Hesabat() {
       }
     } catch (error) {
       console.error('Gift cards fetch error:', error);
+    }
+  };
+
+  const fetchPackageSales = async () => {
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/packages/date/${selectedDate}/${token}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const pkgs = await response.json();
+        setPackageSales(pkgs.map(pkg => ({
+          id: pkg._id,
+          tarix: pkg.createdAt,
+          mebleg: pkg.price,
+          odenisUsulu: pkg.paymentMethod || 'cash',
+          izzahat: `Paket Satışı - ${pkg.massageType?.name} (10 sessiya) - ${pkg.customer?.name}`,
+          customer: pkg.customer,
+          massageType: pkg.massageType,
+          duration: pkg.duration,
+          isPackage: true
+        })));
+      }
+    } catch (error) {
+      console.error('Package sales fetch error:', error);
     }
   };
 
@@ -697,6 +730,13 @@ export default function Hesabat() {
       if (card.odenisUsulu === 'terminal') stats.terminal += amount;
     });
 
+    packageSales.forEach(pkg => {
+      const amount = pkg.mebleg || 0;
+      if (pkg.odenisUsulu === 'cash') stats.cash += amount;
+      if (pkg.odenisUsulu === 'card') stats.card += amount;
+      if (pkg.odenisUsulu === 'terminal') stats.terminal += amount;
+    });
+
     gelirler.forEach(gelir => {
       if (gelir.isMixed) {
         stats.cash += gelir.cash || 0;
@@ -754,6 +794,7 @@ export default function Hesabat() {
     total += behler.reduce((sum, beh) => sum + beh.mebleg, 0);
     // Null-safety check for gift card amounts
     total += giftCards.reduce((sum, card) => sum + (card.mebleg || 0), 0);
+    total += packageSales.reduce((sum, pkg) => sum + (pkg.mebleg || 0), 0);
     const tips = calculateTotalTips();
     total += tips;
     gelirler.forEach(gelir => {
@@ -1072,7 +1113,7 @@ export default function Hesabat() {
         {activeTab === 'xerc' && (
           <button onClick={openAddModal} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} />
-            Gəlir Əlavə Et
+            Xərc Əlavə Et
           </button>
         )}
       </div>
@@ -1125,6 +1166,23 @@ export default function Hesabat() {
                         {card.odenisUsulu === 'cash' && <><Banknote size={16} /> Nağd</>}
                         {card.odenisUsulu === 'card' && <><CreditCard size={16} /> Bank Kartı</>}
                         {card.odenisUsulu === 'terminal' && <><Monitor size={16} /> Terminal</>}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {packageSales.map(pkg => (
+                  <tr key={pkg.id} style={{ borderBottom: '1px solid #e2e8f0', background: '#f3e8ff' }}>
+                    <td style={{ padding: '16px', fontSize: '14px', color: '#1e293b' }}>{formatDate(pkg.tarix)}</td>
+                    <td style={{ padding: '16px' }}>
+                      <span style={{ background: '#9333ea', color: 'white', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>PAKET</span>
+                    </td>
+                    <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{pkg.izzahat}</td>
+                    <td style={{ padding: '16px', fontSize: '16px', fontWeight: '700', color: '#9333ea', textAlign: 'right' }}>{formatCurrency(pkg.mebleg)}</td>
+                    <td style={{ padding: '16px', textAlign: 'center' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', color: '#475569' }}>
+                        {pkg.odenisUsulu === 'cash' && <><Banknote size={16} /> Nağd</>}
+                        {pkg.odenisUsulu === 'card' && <><CreditCard size={16} /> Bank Kartı</>}
+                        {pkg.odenisUsulu === 'terminal' && <><Monitor size={16} /> Terminal</>}
                       </span>
                     </td>
                   </tr>
@@ -1215,96 +1273,101 @@ export default function Hesabat() {
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '32px', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                {modalType === 'add' ? 'Yeni Xərc' : 'Xərci Redaktə Et'}
-              </h2>
-              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                <X size={24} />
-              </button>
+      {
+        showModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: 'white', borderRadius: '16px', padding: '32px', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px rgba(0,0,0,0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                  {modalType === 'add' ? 'Yeni Xərc' : 'Xərci Redaktə Et'}
+                </h2>
+                <button onClick={closeModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                  <X size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Məbləğ</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Kateqoriya</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                    required
+                  >
+                    <option value="">Seçin...</option>
+                    {xercKateqoriyalari.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div><div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>İzahat</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', minHeight: '100px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    placeholder="Xərc haqqında qeyd..."
+                    required
+                  />
+                </div>
+
+
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Tarix</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                  >
+                    Ləğv et
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Save size={18} />
+                    {loading ? 'Saxlanılır...' : 'Saxla'}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Məbləğ</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Kateqoriya</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                  required
-                >
-                  <option value="">Seçin...</option>
-                  {xercKateqoriyalari.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div><div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>İzahat</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', minHeight: '100px', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                  placeholder="Xərc haqqında qeyd..."
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Tarix</label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  style={{ width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
-                >
-                  Ləğv et
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Save size={18} />
-                  {loading ? 'Saxlanılır...' : 'Saxla'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {loading && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <RefreshCw size={24} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: '600' }}>Yüklənir...</span>
+      {
+        loading && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+            <div style={{ background: 'white', padding: '24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <RefreshCw size={24} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+              <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: '600' }}>Yüklənir...</span>
+            </div>
           </div>
-        </div>
-      )}
-    </div>);
+        )
+      }
+    </div >);
 }
