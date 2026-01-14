@@ -430,7 +430,7 @@ export default function Cedvel() {
         // Check if gift card is expired (more than 2 months from purchase date)
         const purchaseDate = new Date(giftCard.purchaseDate);
         const currentDate = new Date();
-        const twoMonthsInMs = 60 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
+        const twoMonthsInMs = 61 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
         const timeDifference = currentDate - purchaseDate;
 
         if (timeDifference > twoMonthsInMs) {

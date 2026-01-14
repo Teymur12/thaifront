@@ -376,7 +376,7 @@ export default function GiftCardManager() {
     // Check if card is expired (more than 2 months from purchase date)
     const purchaseDate = new Date(card.purchaseDate);
     const currentDate = new Date();
-    const twoMonthsInMs = 60 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
+    const twoMonthsInMs = 61 * 24 * 60 * 60 * 1000; // 60 days in milliseconds
     const timeDifference = currentDate - purchaseDate;
 
     if (timeDifference > twoMonthsInMs) {
