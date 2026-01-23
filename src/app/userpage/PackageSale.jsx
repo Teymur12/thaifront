@@ -322,6 +322,7 @@ export default function PackageSale() {
                         <tr>
                             <th style={styles.th}>Tarix</th>
                             <th style={styles.th}>Müştəri</th>
+                            <th style={styles.th}>Filial</th>
                             <th style={styles.th}>Paket</th>
                             <th style={styles.th}>Müddət</th>
                             <th style={styles.th}>Gediş Qalıq</th>
@@ -333,7 +334,7 @@ export default function PackageSale() {
                     <tbody>
                         {packages.length === 0 ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                                <td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
                                     Heç bir paket tapılmadı
                                 </td>
                             </tr>
@@ -344,6 +345,9 @@ export default function PackageSale() {
                                     <td style={styles.td}>
                                         <div style={{ fontWeight: '500' }}>{pkg.customer?.name}</div>
                                         <div style={{ fontSize: '12px', color: '#6b7280' }}>{pkg.customer?.phone}</div>
+                                    </td>
+                                    <td style={styles.td}>
+                                        <div style={{ fontSize: '13px', color: '#4b5563' }}>{pkg.branch?.name || '---'}</div>
                                     </td>
                                     <td style={styles.td}>{pkg.massageType?.name}</td>
                                     <td style={styles.td}>{pkg.duration} dəq</td>
