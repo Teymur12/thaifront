@@ -120,6 +120,17 @@ export default function Cedvel() {
   // Terminal çek çıxarma checkbox
   const [printTerminalReceiptEnabled, setPrintTerminalReceiptEnabled] = useState(false);
 
+  // ✅ YENİ - Müştəri rəyi və masajist reytinqləri
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackAppointment, setFeedbackAppointment] = useState(null);
+  const [feedbackResponse, setFeedbackResponse] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState(null);
+
+  const [showRatingsModal, setShowRatingsModal] = useState(false);
+  const [masseurRatings, setMasseurRatings] = useState([]);
+  const [loadingRatings, setLoadingRatings] = useState(false);
+
+
 
 
 
@@ -845,6 +856,74 @@ export default function Cedvel() {
     }
   };
 
+  // ✅ YENİ - Müştəri rəyi göndər
+  const submitFeedback = async () => {
+    if (!feedbackAppointment) return;
+
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/receptionist/appointments/${feedbackAppointment._id}/feedback/${token}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          response: feedbackResponse || null,
+          satisfactionRating: feedbackRating || null
+        })
+      });
+
+      if (response.ok) {
+        alert('Müştəri rəyi uğurla əlavə edildi!');
+        setShowFeedbackModal(false);
+        setFeedbackAppointment(null);
+        setFeedbackResponse('');
+        setFeedbackRating(null);
+        await fetchDayAppointments();
+      } else {
+        const error = await response.json();
+        alert('Xəta: ' + (error.message || 'Rəy əlavə edilmədi'));
+      }
+    } catch (error) {
+      console.error('Feedback submission error:', error);
+      alert('Rəy göndərərkən xəta baş verdi');
+    }
+  };
+
+  // ✅ YENİ - Masajist reytinqlərini gətir
+  const fetchMasseurRatings = async () => {
+    setLoadingRatings(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/receptionist/masseurs/ratings/${token}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const ratings = await response.json();
+        setMasseurRatings(ratings);
+        setShowRatingsModal(true);
+      } else {
+        alert('Reytinqlər yüklənmədi');
+      }
+    } catch (error) {
+      console.error('Fetch ratings error:', error);
+      alert('Reytinqlər yüklənərkən xəta baş verdi');
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
+
+  // ✅ YENİ - Rəy modalını aç
+  const openFeedbackModal = (appointment) => {
+    setFeedbackAppointment(appointment);
+    setFeedbackResponse(appointment.customerFeedback?.response || '');
+    setFeedbackRating(appointment.customerFeedback?.satisfactionRating || null);
+    setShowFeedbackModal(true);
+  };
+
+
   const addAppointment = async () => {
     if (!formData.customer || !formData.masseur || !formData.massageType || !formData.duration) {
       alert('Zəhmət olmasa bütün sahələri doldurun!');
@@ -1444,6 +1523,32 @@ export default function Cedvel() {
             <span style={{ color: '#64748b' }}>Bloklanan: {blockedMasseursForToday.length} nəfər</span>
           </>
         )}
+
+        {/* ✅ YENİ - Masajist Reytinqləri Düyməsi */}
+        <button
+          onClick={fetchMasseurRatings}
+          disabled={loadingRatings}
+          style={{
+            marginLeft: 'auto',
+            padding: '8px 16px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '13px',
+            fontWeight: '500',
+            cursor: loadingRatings ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            opacity: loadingRatings ? 0.6 : 1
+          }}
+          onMouseEnter={(e) => !loadingRatings && (e.currentTarget.style.backgroundColor = '#5a67d8')}
+          onMouseLeave={(e) => !loadingRatings && (e.currentTarget.style.backgroundColor = '#667eea')}
+        >
+          <CheckCircle size={16} />
+          {loadingRatings ? 'Yüklənir...' : 'Masajistlərin Reytinqi'}
+        </button>
       </div>
 
       {/* Schedule Grid */}
@@ -2248,6 +2353,66 @@ export default function Cedvel() {
                 </div>
               )}
 
+              {/* ✅ YENİ - Müştəri Rəyi (Completed randevular üçün) */}
+              {selectedAppointment.status === 'completed' && (
+                <div style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b', margin: 0 }}>Müştəri Rəyi</h4>
+                    <button
+                      onClick={() => {
+                        setShowAppointmentModal(false);
+                        openFeedbackModal(selectedAppointment);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#667eea',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5a67d8'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+                    >
+                      <Edit size={14} />
+                      {selectedAppointment.customerFeedback?.satisfactionRating || selectedAppointment.customerFeedback?.response ? 'Dəyişdir' : 'Əlavə et'}
+                    </button>
+                  </div>
+
+                  {selectedAppointment.customerFeedback?.satisfactionRating || selectedAppointment.customerFeedback?.response ? (
+                    <>
+                      {selectedAppointment.customerFeedback.satisfactionRating && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '13px', color: '#64748b', marginRight: '8px' }}>Reytinq:</span>
+                          <span style={{ fontSize: '16px' }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star}>{selectedAppointment.customerFeedback.satisfactionRating >= star ? '⭐' : '☆'}</span>
+                            ))}
+                          </span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#667eea', marginLeft: '8px' }}>
+                            {selectedAppointment.customerFeedback.satisfactionRating}/5
+                          </span>
+                        </div>
+                      )}
+                      {selectedAppointment.customerFeedback.response && (
+                        <div style={{ fontSize: '13px', color: '#1e293b', fontStyle: 'italic', padding: '8px', backgroundColor: 'white', borderRadius: '6px' }}>
+                          "{selectedAppointment.customerFeedback.response}"
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', padding: '12px' }}>
+                      Hələ rəy əlavə edilməyib
+                    </div>
+                  )}
+                </div>
+              )}
+
               {selectedAppointment.status === 'scheduled' && (
                 <>
                   <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
@@ -2918,6 +3083,283 @@ export default function Cedvel() {
                 Keç
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ YENİ - Müştəri Rəyi Modal */}
+      {showFeedbackModal && feedbackAppointment && (
+        <div
+          onClick={() => {
+            setShowFeedbackModal(false);
+            setFeedbackAppointment(null);
+            setFeedbackResponse('');
+            setFeedbackRating(null);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}
+          >
+            <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', color: '#1e293b' }}>
+              Müştəri Rəyi
+            </h2>
+
+            {/* Randevu məlumatları */}
+            <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                <strong>Müştəri:</strong> {feedbackAppointment.customer?.name}
+              </div>
+              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                <strong>Masajist:</strong> {feedbackAppointment.masseur?.name}
+              </div>
+              <div style={{ fontSize: '14px', color: '#64748b' }}>
+                <strong>Xidmət:</strong> {feedbackAppointment.massageType?.name}
+              </div>
+            </div>
+
+            {/* Məmnuniyyət Reytinqi */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '12px' }}>
+                Məmnuniyyət Reytinqi (İxtiyari):
+              </label>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setFeedbackRating(star)}
+                    style={{
+                      padding: '12px 20px',
+                      border: feedbackRating === star ? '2px solid #667eea' : '1px solid #e5e7eb',
+                      backgroundColor: feedbackRating === star ? '#eff6ff' : 'white',
+                      borderRadius: '8px',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (feedbackRating !== star) {
+                        e.currentTarget.style.backgroundColor = '#f8fafc';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (feedbackRating !== star) {
+                        e.currentTarget.style.backgroundColor = 'white';
+                      }
+                    }}
+                  >
+                    {feedbackRating >= star ? '⭐' : '☆'}
+                  </button>
+                ))}
+              </div>
+              {feedbackRating && (
+                <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '13px', color: '#667eea', fontWeight: '500' }}>
+                  Seçildi: {feedbackRating} ulduz
+                </div>
+              )}
+            </div>
+
+            {/* Müştəri Cavabı */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                Müştəri Cavabı (İxtiyari):
+              </label>
+              <textarea
+                value={feedbackResponse}
+                onChange={(e) => setFeedbackResponse(e.target.value)}
+                placeholder="Müştərinin cavabını bura yazın..."
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            {/* Düymələr */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={submitFeedback}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  backgroundColor: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5a67d8'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+              >
+                <Save size={16} style={{ display: 'inline', marginRight: '6px' }} />
+                Yadda saxla
+              </button>
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setFeedbackAppointment(null);
+                  setFeedbackResponse('');
+                  setFeedbackRating(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  backgroundColor: 'transparent',
+                  color: '#64748b',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} style={{ display: 'inline', marginRight: '6px' }} />
+                Ləğv et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ YENİ - Masajist Reytinqləri Modal */}
+      {showRatingsModal && (
+        <div
+          onClick={() => setShowRatingsModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}
+          >
+            <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', color: '#1e293b' }}>
+              Masajistlərin Reytinqləri
+            </h2>
+
+            {masseurRatings.length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
+                <CheckCircle size={48} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                <div style={{ fontSize: '16px', fontWeight: '500' }}>Hələ rəy yoxdur</div>
+                <div style={{ fontSize: '14px', marginTop: '8px' }}>
+                  Müştəri rəyləri əlavə edildikdə burada görünəcək
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {masseurRatings.map((rating) => (
+                  <div
+                    key={rating.masseurId}
+                    style={{
+                      padding: '16px',
+                      backgroundColor: '#f8fafc',
+                      borderRadius: '8px',
+                      border: '1px solid #e5e7eb'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
+                        {rating.masseurName}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {rating.averageRating > 0 ? (
+                          <>
+                            <div style={{ fontSize: '18px', fontWeight: '700', color: '#667eea' }}>
+                              {rating.averageRating.toFixed(1)}
+                            </div>
+                            <div style={{ fontSize: '16px' }}>⭐</div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: '13px', color: '#94a3b8' }}>Rəy yoxdur</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {rating.totalFeedbacks > 0 && (
+                      <div style={{ fontSize: '13px', color: '#64748b' }}>
+                        Ümumi rəy sayı: {rating.totalFeedbacks}
+                      </div>
+                    )}
+
+                    {/* Ulduz göstəricisi */}
+                    {rating.averageRating > 0 && (
+                      <div style={{ marginTop: '8px', display: 'flex', gap: '4px' }}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span key={star} style={{ fontSize: '16px' }}>
+                            {rating.averageRating >= star ? '⭐' : rating.averageRating >= star - 0.5 ? '⭐' : '☆'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowRatingsModal(false)}
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '12px 20px',
+                backgroundColor: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5a67d8'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+            >
+              Bağla
+            </button>
           </div>
         </div>
       )}
