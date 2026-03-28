@@ -41,6 +41,7 @@ export default function Cedvel() {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editDate, setEditDate] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
@@ -1151,13 +1152,15 @@ export default function Cedvel() {
 
   const openEditModal = (appointment) => {
     setSelectedAppointment(appointment);
+    const appointmentDate = new Date(appointment.startTime);
+    setEditDate(appointmentDate);
     setFormData({
       customer: appointment.customer._id,
       masseur: appointment.masseur._id,
       massageType: appointment.massageType._id,
       duration: appointment.duration.toString(),
       price: appointment.price,
-      startTime: new Date(appointment.startTime).toTimeString().slice(0, 5),
+      startTime: appointmentDate.toTimeString().slice(0, 5),
       notes: appointment.notes || '',
       giftCard: null,
       advancePayment: appointment.advancePayment || { amount: 0, paymentMethod: '' }
@@ -1173,7 +1176,7 @@ export default function Cedvel() {
       const token = getToken();
       const [hour, minute] = formData.startTime.split(':');
 
-      const startTime = new Date(selectedDate);
+      const startTime = new Date(editDate || selectedDate);
       startTime.setHours(parseInt(hour), parseInt(minute), 0, 0);
       const endTime = new Date(startTime.getTime() + (parseInt(formData.duration) * 60000));
 
@@ -1244,6 +1247,7 @@ export default function Cedvel() {
     setShowCustomerDropdown(false);
     setShowAddForm(false);
     setShowEditModal(false);
+    setEditDate(null);
     setSelectedSlot(null);
     setGiftCardNumber('');
     setGiftCardError('');
@@ -2836,9 +2840,30 @@ export default function Cedvel() {
                 </select>
               </div>
 
+              {/* Date */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                  <Calendar size={16} style={{ marginRight: '6px' }} />
+                  Tarix:
+                </label>
+                <input
+                  type="date"
+                  value={editDate ? `${editDate.getFullYear()}-${String(editDate.getMonth() + 1).padStart(2, '0')}-${String(editDate.getDate()).padStart(2, '0')}` : ''}
+                  onChange={(e) => {
+                    const [year, month, day] = e.target.value.split('-');
+                    const newDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    setEditDate(newDate);
+                  }}
+                  style={{ width: '100%', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+
               {/* Start Time */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>Başlanğıc Vaxtı:</label>
+                <label style={{ display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+                  <Clock size={16} style={{ marginRight: '6px' }} />
+                  Başlanğıc Vaxtı:
+                </label>
                 <input
                   type="time"
                   value={formData.startTime}
