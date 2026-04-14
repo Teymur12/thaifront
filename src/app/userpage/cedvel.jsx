@@ -131,11 +131,11 @@ export default function Cedvel() {
   const [masseurRatings, setMasseurRatings] = useState([]);
   const [loadingRatings, setLoadingRatings] = useState(false);
 
+  // Nermin multi-branch
+  const [allBranches, setAllBranches] = useState([]);
+  const [activeBranch, setActiveBranch] = useState(null);
 
-
-
-
-
+  const isNermin = userData?.username === 'nermin';
 
   useEffect(() => {
     setMounted(true);
@@ -164,6 +164,10 @@ export default function Cedvel() {
     const data = getUserData();
     setUserData(data);
     setUserBranch(data?.branch);
+    // Nermin üçün activeBranch-ı default olaraq öz branch-ına set et
+    if (data?.username === 'nermin') {
+      setActiveBranch(data?.branch);
+    }
   }, [mounted]);
 
   const generateTimeSlots = () => {
@@ -226,18 +230,20 @@ export default function Cedvel() {
     if (mounted && userData && userBranch) {
       fetchMasseursForDate();
     }
-  }, [selectedDate, mounted, userData, userBranch]);
+  }, [selectedDate, mounted, userData, userBranch, activeBranch]);
 
   useEffect(() => {
     if (mounted && userData && userBranch && (masseurs.length >= 0 || blockedMasseursForToday.length >= 0)) {
       fetchDayAppointments();
     }
-  }, [selectedDate, masseurs, blockedMasseursForToday, mounted, userData, userBranch]);
+  }, [selectedDate, masseurs, blockedMasseursForToday, mounted, userData, userBranch, activeBranch]);
 
   const fetchMasseursForDate = async () => {
     try {
       const token = getToken();
-      const response = await fetch(`${API_BASE}/receptionist/masseurs/${token}`, {
+      // Nermin üçün: activeBranch query parametri göndər
+      const branchQuery = isNermin && activeBranch ? `?branch=${activeBranch._id}` : '';
+      const response = await fetch(`${API_BASE}/receptionist/masseurs/${token}${branchQuery}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -260,7 +266,8 @@ export default function Cedvel() {
     try {
       const token = getToken();
 
-      const [customersRes, masseursRes, massageTypesRes] = await Promise.all([
+      // Nermin üçün: bütün filialları çək
+      const fetchPromises = [
         fetch(`${API_BASE}/receptionist/customers/${token}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -270,7 +277,19 @@ export default function Cedvel() {
         fetch(`${API_BASE}/receptionist/massage-types/${token}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
-      ]);
+      ];
+
+      // Nermin üçün branches endpoint-ini də çağır
+      if (isNermin) {
+        fetchPromises.push(
+          fetch(`${API_BASE}/receptionist/branches/${token}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        );
+      }
+
+      const results = await Promise.all(fetchPromises);
+      const [customersRes, masseursRes, massageTypesRes] = results;
 
       if (customersRes.ok) {
         const customersData = await customersRes.json();
@@ -288,6 +307,19 @@ export default function Cedvel() {
         setMassageTypes(massageTypesData);
       }
 
+      // Nermin üçün branches
+      if (isNermin && results[3]) {
+        const branchesRes = results[3];
+        if (branchesRes.ok) {
+          const branchesData = await branchesRes.json();
+          setAllBranches(branchesData);
+          // activeBranch hələ set olunmayıbsa, ilk filialı seç
+          if (!activeBranch) {
+            setActiveBranch(branchesData[0] || userBranch);
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Initial data fetch error:', error);
     } finally {
@@ -300,7 +332,9 @@ export default function Cedvel() {
       const token = getToken();
       const dateString = formatDateForAPI(selectedDate);
 
-      const response = await fetch(`${API_BASE}/receptionist/appointments/${dateString}/${token}`, {
+      // Nermin üçün: activeBranch query parametri göndər
+      const branchQuery = isNermin && activeBranch ? `?branch=${activeBranch._id}` : '';
+      const response = await fetch(`${API_BASE}/receptionist/appointments/${dateString}/${token}${branchQuery}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -931,7 +965,8 @@ export default function Cedvel() {
       return;
     }
 
-    if (!userBranch?._id) {
+    const currentBranch = isNermin && activeBranch ? activeBranch : userBranch;
+    if (!currentBranch?._id) {
       alert('Filial məlumatı tapılmadı!');
       return;
     }
@@ -958,7 +993,7 @@ export default function Cedvel() {
       const appointmentData = {
         customer: formData.customer,
         masseur: formData.masseur,
-        branch: userBranch._id,
+        branch: currentBranch._id,
         massageType: formData.massageType,
         duration: parseInt(formData.duration),
         price: formData.price, // Send the base price, backend will adjust
@@ -1334,8 +1369,33 @@ export default function Cedvel() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '20px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Building2 size={24} color="#667eea" />
-          <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userBranch.name} - Günlük Cədvəl</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{(isNermin && activeBranch) ? activeBranch.name : userBranch.name} - Günlük Cədvəl</h2>
           <h2>İşçi: {userData.name}</h2>
+          {/* Nermin üçün filial seçici */}
+          {isNermin && allBranches.length > 0 && (
+            <div style={{ display: 'flex', gap: '6px', marginLeft: '12px' }}>
+              {allBranches.map(branch => (
+                <button
+                  key={branch._id}
+                  onClick={() => setActiveBranch(branch)}
+                  style={{
+                    padding: '8px 16px',
+                    border: '2px solid',
+                    borderColor: activeBranch?._id === branch._id ? '#667eea' : '#e2e8f0',
+                    backgroundColor: activeBranch?._id === branch._id ? '#667eea' : 'white',
+                    color: activeBranch?._id === branch._id ? 'white' : '#475569',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {branch.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative' }}>
@@ -2445,7 +2505,7 @@ export default function Cedvel() {
                       Redaktə Et
                     </button>
 
-                    {userData?.username === 'leman' && (
+                    {(userData?.username === 'leman' || userData?.username === 'nermin') && (
                       <button
                         onClick={deleteAppointment}
                         style={{
