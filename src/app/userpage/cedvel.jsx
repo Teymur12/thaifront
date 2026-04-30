@@ -89,10 +89,6 @@ export default function Cedvel() {
   const [allMasseurs, setAllMasseurs] = useState([]);
   const [blockedMasseursForToday, setBlockedMasseursForToday] = useState([]);
 
-  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  const [whatsappLink, setWhatsappLink] = useState('');
-  const [completedCustomerName, setCompletedCustomerName] = useState('');
-
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
 
@@ -107,29 +103,14 @@ export default function Cedvel() {
 
   const [selectedMassageIndices, setSelectedMassageIndices] = useState([]);
 
-  // Terminal configuration
-  const [terminalConfig, setTerminalConfig] = useState({
-    ip: '192.168.1.5',
-    port: 5544,
-    enabled: true
-  });
-
   // Package Auto-Use States
   const [customerPackages, setCustomerPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
-  // Terminal çek çıxarma checkbox
-  const [printTerminalReceiptEnabled, setPrintTerminalReceiptEnabled] = useState(false);
-
-  // ✅ YENİ - Müştəri rəyi və masajist reytinqləri
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackAppointment, setFeedbackAppointment] = useState(null);
-  const [feedbackResponse, setFeedbackResponse] = useState('');
-  const [feedbackRating, setFeedbackRating] = useState(null);
-
-  const [showRatingsModal, setShowRatingsModal] = useState(false);
-  const [masseurRatings, setMasseurRatings] = useState([]);
-  const [loadingRatings, setLoadingRatings] = useState(false);
+  // ✅ YENİ - May Ayı Endirimləri
+  const [showMayDiscountsModal, setShowMayDiscountsModal] = useState(false);
+  const [mayDiscounts, setMayDiscounts] = useState([]);
+  const [loadingMayDiscounts, setLoadingMayDiscounts] = useState(false);
 
   // nermin1 multi-branch
   const [allBranches, setAllBranches] = useState([]);
@@ -841,120 +822,9 @@ export default function Cedvel() {
     }
   };
 
-  const printTerminalReceipt = async (appointmentData) => {
-    if (!terminalConfig.enabled) {
-      console.log('Terminal çek çıxarma deaktivdir');
-      return;
-    }
-
-    try {
-      const token = getToken();
-      const receiptData = {
-        terminalConfig: {
-          ip: terminalConfig.ip,
-          port: terminalConfig.port
-        },
-        receiptData: {
-          organizationName: userBranch?.name || 'THAI HEALTH THERAPY',
-          customerName: 'Müştəri', // Həmişə "Müştəri" göstər
-          massageType: appointmentData.massageType?.name || 'Xidmət',
-          duration: appointmentData.duration,
-          price: appointmentData.price,
-          paymentMethod: 'terminal',
-          date: new Date().toISOString(),
-          appointmentId: appointmentData._id,
-          masseur: appointmentData.masseur?.name || ''
-        }
-      };
-
-      const response = await fetch(`${API_BASE}/receptionist/terminal/print-receipt/${token}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(receiptData)
-      });
-
-      if (response.ok) {
-        console.log('Terminal çeki uğurla çıxarıldı');
-      } else {
-        const error = await response.json();
-        console.error('Terminal çek xətası:', error.message);
-        // Xəta olsa belə, ödəniş qeydə alınır, sadəcə bildiriş göstəririk
-        alert('Diqqət: Ödəniş qeydə alındı, lakin terminal çeki çıxarılmadı. Xəta: ' + (error.message || 'Naməlum xəta'));
-      }
-    } catch (error) {
-      console.error('Terminal çek xətası:', error);
-      alert('Diqqət: Ödəniş qeydə alındı, lakin terminal çeki çıxarılmadı. Terminal ilə əlaqə qurulamadı.');
-    }
-  };
-
-  // ✅ YENİ - Müştəri rəyi göndər
-  const submitFeedback = async () => {
-    if (!feedbackAppointment) return;
-
-    try {
-      const token = getToken();
-      const response = await fetch(`${API_BASE}/receptionist/appointments/${feedbackAppointment._id}/feedback/${token}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          response: feedbackResponse || null,
-          satisfactionRating: feedbackRating || null
-        })
-      });
-
-      if (response.ok) {
-        alert('Müştəri rəyi uğurla əlavə edildi!');
-        setShowFeedbackModal(false);
-        setFeedbackAppointment(null);
-        setFeedbackResponse('');
-        setFeedbackRating(null);
-        await fetchDayAppointments();
-      } else {
-        const error = await response.json();
-        alert('Xəta: ' + (error.message || 'Rəy əlavə edilmədi'));
-      }
-    } catch (error) {
-      console.error('Feedback submission error:', error);
-      alert('Rəy göndərərkən xəta baş verdi');
-    }
-  };
-
-  // ✅ YENİ - Masajist reytinqlərini gətir
-  const fetchMasseurRatings = async () => {
-    setLoadingRatings(true);
-    try {
-      const token = getToken();
-      const response = await fetch(`${API_BASE}/receptionist/masseurs/ratings/${token}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const ratings = await response.json();
-        setMasseurRatings(ratings);
-        setShowRatingsModal(true);
-      } else {
-        alert('Reytinqlər yüklənmədi');
-      }
-    } catch (error) {
-      console.error('Fetch ratings error:', error);
-      alert('Reytinqlər yüklənərkən xəta baş verdi');
-    } finally {
-      setLoadingRatings(false);
-    }
-  };
-
-  // ✅ YENİ - Rəy modalını aç
-  const openFeedbackModal = (appointment) => {
-    setFeedbackAppointment(appointment);
-    setFeedbackResponse(appointment.customerFeedback?.response || '');
-    setFeedbackRating(appointment.customerFeedback?.satisfactionRating || null);
-    setShowFeedbackModal(true);
+  // ✅ YENİ - May Ayı Endirimləri Modalını aç
+  const fetchMayDiscounts = () => {
+    setShowMayDiscountsModal(true);
   };
 
 
@@ -1118,27 +988,9 @@ export default function Cedvel() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-
-        // Əgər ödəniş terminal ilə edilibsə VƏ checkbox işarələnibsə, çek çıxart
-        if (paymentMethod === 'terminal' && printTerminalReceiptEnabled) {
-          await printTerminalReceipt({
-            ...selectedAppointment,
-            paymentMethod: 'terminal'
-          });
-        }
-
         await fetchDayAppointments();
         setShowAppointmentModal(false);
-
-        if (result.whatsappLink) {
-          setWhatsappLink(result.whatsappLink);
-          setCompletedCustomerName(selectedAppointment.customer?.name || 'Müştəri');
-          setShowWhatsAppModal(true);
-        } else {
-          alert('Randevu tamamlandı və ödəniş qeydə alındı!');
-        }
-
+        alert('Randevu tamamlandı və ödəniş qeydə alındı!');
         setSelectedAppointment(null);
       } else {
         const error = await response.json();
@@ -1587,30 +1439,30 @@ export default function Cedvel() {
           </>
         )}
 
-        {/* ✅ YENİ - Masajist Reytinqləri Düyməsi */}
+        {/* ✅ YENİ - May Ayı Endirimləri Düyməsi */}
         <button
-          onClick={fetchMasseurRatings}
-          disabled={loadingRatings}
+          onClick={fetchMayDiscounts}
+          disabled={loadingMayDiscounts}
           style={{
             marginLeft: 'auto',
             padding: '8px 16px',
-            backgroundColor: '#667eea',
+            backgroundColor: '#10b981',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
             fontSize: '13px',
             fontWeight: '500',
-            cursor: loadingRatings ? 'not-allowed' : 'pointer',
+            cursor: loadingMayDiscounts ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            opacity: loadingRatings ? 0.6 : 1
+            opacity: loadingMayDiscounts ? 0.6 : 1
           }}
-          onMouseEnter={(e) => !loadingRatings && (e.currentTarget.style.backgroundColor = '#5a67d8')}
-          onMouseLeave={(e) => !loadingRatings && (e.currentTarget.style.backgroundColor = '#667eea')}
+          onMouseEnter={(e) => !loadingMayDiscounts && (e.currentTarget.style.backgroundColor = '#059669')}
+          onMouseLeave={(e) => !loadingMayDiscounts && (e.currentTarget.style.backgroundColor = '#10b981')}
         >
-          <CheckCircle size={16} />
-          {loadingRatings ? 'Yüklənir...' : 'Masajistlərin Reytinqi'}
+          <DollarSign size={16} />
+          {loadingMayDiscounts ? 'Yüklənir...' : 'May Ayı Endirimləri'}
         </button>
       </div>
 
@@ -2557,38 +2409,7 @@ export default function Cedvel() {
                   </div>
 
                   <div style={{ marginTop: '16px' }}>
-                    {/* Terminal Çek Checkbox */}
-                    <div style={{
-                      marginBottom: '12px',
-                      padding: '12px',
-                      backgroundColor: '#f8fafc',
-                      borderRadius: '8px',
-                      border: '1px solid #e5e7eb'
-                    }}>
-                      <label style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#374151'
-                      }}>
-                        <input
-                          type="checkbox"
-                          checked={printTerminalReceiptEnabled}
-                          onChange={(e) => setPrintTerminalReceiptEnabled(e.target.checked)}
-                          style={{
-                            width: '18px',
-                            height: '18px',
-                            cursor: 'pointer',
-                            accentColor: '#8b5cf6'
-                          }}
-                        />
-                        <Monitor size={16} color="#8b5cf6" />
-                        <span>Terminal çek çıxart</span>
-                      </label>
-                    </div>
+
 
                     <div style={{ fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '12px', textAlign: 'center' }}>
                       {selectedAppointment.advancePayment?.amount > 0 ? 'Qalan məbləği ödə:' : 'Ödəniş et:'}
@@ -3108,78 +2929,12 @@ export default function Cedvel() {
 
 
 
-      {/* WhatsApp Modal */}
-      {showWhatsAppModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px', width: '90%', padding: '24px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <CheckCircle size={48} style={{ color: '#10b981', margin: '0 auto 12px' }} />
-              <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px 0' }}>Randevu Tamamlandı!</h3>
-              <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-                {completedCustomerName} üçün WhatsApp bildirişi göndərmək istəyirsiniz?
-              </p>
-            </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => {
-                  window.open(whatsappLink, '_blank');
-                  setShowWhatsAppModal(false);
-                  setWhatsappLink('');
-                  setCompletedCustomerName('');
-                }}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  backgroundColor: '#25D366',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                WhatsApp Göndər
-              </button>
-              <button
-                onClick={() => {
-                  setShowWhatsAppModal(false);
-                  setWhatsappLink('');
-                  setCompletedCustomerName('');
-                }}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  backgroundColor: 'transparent',
-                  color: '#64748b',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                Keç
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ✅ YENİ - Müştəri Rəyi Modal */}
-      {showFeedbackModal && feedbackAppointment && (
+      {/* ✅ YENİ - May Ayı Endirimli Qiymət Siyahısı Modal */}
+      {showMayDiscountsModal && (
         <div
-          onClick={() => {
-            setShowFeedbackModal(false);
-            setFeedbackAppointment(null);
-            setFeedbackResponse('');
-            setFeedbackRating(null);
-          }}
+          onClick={() => setShowMayDiscountsModal(false)}
           style={{
             position: 'fixed',
             top: 0,
@@ -3199,250 +2954,79 @@ export default function Cedvel() {
               backgroundColor: 'white',
               borderRadius: '12px',
               padding: '24px',
-              maxWidth: '500px',
-              width: '90%',
-              maxHeight: '80vh',
+              maxWidth: '700px',
+              width: '95%',
+              maxHeight: '85vh',
               overflow: 'auto'
             }}
           >
-            <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', color: '#1e293b' }}>
-              Müştəri Rəyi
-            </h2>
-
-            {/* Randevu məlumatları */}
-            <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
-              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
-                <strong>Müştəri:</strong> {feedbackAppointment.customer?.name}
-              </div>
-              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
-                <strong>Masajist:</strong> {feedbackAppointment.masseur?.name}
-              </div>
-              <div style={{ fontSize: '14px', color: '#64748b' }}>
-                <strong>Xidmət:</strong> {feedbackAppointment.massageType?.name}
-              </div>
-            </div>
-
-            {/* Məmnuniyyət Reytinqi */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '12px' }}>
-                Məmnuniyyət Reytinqi (İxtiyari):
-              </label>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setFeedbackRating(star)}
-                    style={{
-                      padding: '12px 20px',
-                      border: feedbackRating === star ? '2px solid #667eea' : '1px solid #e5e7eb',
-                      backgroundColor: feedbackRating === star ? '#eff6ff' : 'white',
-                      borderRadius: '8px',
-                      fontSize: '20px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (feedbackRating !== star) {
-                        e.currentTarget.style.backgroundColor = '#f8fafc';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (feedbackRating !== star) {
-                        e.currentTarget.style.backgroundColor = 'white';
-                      }
-                    }}
-                  >
-                    {feedbackRating >= star ? '⭐' : '☆'}
-                  </button>
-                ))}
-              </div>
-              {feedbackRating && (
-                <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '13px', color: '#667eea', fontWeight: '500' }}>
-                  Seçildi: {feedbackRating} ulduz
-                </div>
-              )}
-            </div>
-
-            {/* Müştəri Cavabı */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
-                Müştəri Cavabı (İxtiyari):
-              </label>
-              <textarea
-                value={feedbackResponse}
-                onChange={(e) => setFeedbackResponse(e.target.value)}
-                placeholder="Müştərinin cavabını bura yazın..."
-                style={{
-                  width: '100%',
-                  minHeight: '100px',
-                  padding: '12px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            {/* Düymələr */}
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                🌸 May Ayı Endirimli Qiymət Siyahısı
+              </h2>
               <button
-                onClick={submitFeedback}
-                style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  backgroundColor: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5a67d8'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+                onClick={() => setShowMayDiscountsModal(false)}
+                style={{ padding: '8px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}
               >
-                <Save size={16} style={{ display: 'inline', marginRight: '6px' }} />
-                Yadda saxla
-              </button>
-              <button
-                onClick={() => {
-                  setShowFeedbackModal(false);
-                  setFeedbackAppointment(null);
-                  setFeedbackResponse('');
-                  setFeedbackRating(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  backgroundColor: 'transparent',
-                  color: '#64748b',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={16} style={{ display: 'inline', marginRight: '6px' }} />
-                Ləğv et
+                <X size={20} />
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            
+            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
+              May ayı ərzində bütün masaj xidmətlərinə <strong>10% endirim</strong> tətbiq olunur.
+            </p>
 
-      {/* ✅ YENİ - Masajist Reytinqləri Modal */}
-      {showRatingsModal && (
-        <div
-          onClick={() => setShowRatingsModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '24px',
-              maxWidth: '600px',
-              width: '90%',
-              maxHeight: '80vh',
-              overflow: 'auto'
-            }}
-          >
-            <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', color: '#1e293b' }}>
-              Masajistlərin Reytinqləri
-            </h2>
-
-            {masseurRatings.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-                <CheckCircle size={48} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-                <div style={{ fontSize: '16px', fontWeight: '500' }}>Hələ rəy yoxdur</div>
-                <div style={{ fontSize: '14px', marginTop: '8px' }}>
-                  Müştəri rəyləri əlavə edildikdə burada görünəcək
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {masseurRatings.map((rating) => (
-                  <div
-                    key={rating.masseurId}
-                    style={{
-                      padding: '16px',
-                      backgroundColor: '#f8fafc',
-                      borderRadius: '8px',
-                      border: '1px solid #e5e7eb'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
-                        {rating.masseurName}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {rating.averageRating > 0 ? (
-                          <>
-                            <div style={{ fontSize: '18px', fontWeight: '700', color: '#667eea' }}>
-                              {rating.averageRating.toFixed(1)}
-                            </div>
-                            <div style={{ fontSize: '16px' }}>⭐</div>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: '13px', color: '#94a3b8' }}>Rəy yoxdur</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {rating.totalFeedbacks > 0 && (
-                      <div style={{ fontSize: '13px', color: '#64748b' }}>
-                        Ümumi rəy sayı: {rating.totalFeedbacks}
-                      </div>
-                    )}
-
-                    {/* Ulduz göstəricisi */}
-                    {rating.averageRating > 0 && (
-                      <div style={{ marginTop: '8px', display: 'flex', gap: '4px' }}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span key={star} style={{ fontSize: '16px' }}>
-                            {rating.averageRating >= star ? '⭐' : rating.averageRating >= star - 0.5 ? '⭐' : '☆'}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8fafc', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>
+                    <th style={{ padding: '12px 15px', color: '#475569' }}>Masaj Növü</th>
+                    <th style={{ padding: '12px 15px', color: '#475569' }}>Müddət</th>
+                    <th style={{ padding: '12px 15px', color: '#475569' }}>Orijinal Qiymət</th>
+                    <th style={{ padding: '12px 15px', color: '#10b981' }}>May Endirimi (10%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {massageTypes.map((type) => (
+                    type.durations.map((dur, index) => {
+                      const discountAmount = (dur.price * 10) / 100;
+                      const discountedPrice = Math.round(dur.price - discountAmount);
+                      
+                      return (
+                        <tr key={`${type._id}-${dur.minutes}`} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                          <td style={{ padding: '12px 15px', fontWeight: '500' }}>{index === 0 ? type.name : ''}</td>
+                          <td style={{ padding: '12px 15px' }}>{dur.minutes} dəqiqə</td>
+                          <td style={{ padding: '12px 15px', textDecoration: 'line-through', color: '#94a3b8' }}>{dur.price} AZN</td>
+                          <td style={{ padding: '12px 15px', fontWeight: '700', color: '#059669', fontSize: '16px' }}>
+                            {discountedPrice} AZN
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <button
-              onClick={() => setShowRatingsModal(false)}
+              onClick={() => setShowMayDiscountsModal(false)}
               style={{
                 width: '100%',
-                marginTop: '20px',
-                padding: '12px 20px',
-                backgroundColor: '#667eea',
+                marginTop: '25px',
+                padding: '14px 20px',
+                backgroundColor: '#10b981',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer'
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5a67d8'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
             >
-              Bağla
+              Anladım
             </button>
           </div>
         </div>
