@@ -107,10 +107,19 @@ export default function Cedvel() {
   const [customerPackages, setCustomerPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
-  // ✅ YENİ - May Ayı Endirimləri
+  // ✅ İyun Ayı Endirimləri (Həftəiçi 11:00-17:00 arası 15%)
   const [showMayDiscountsModal, setShowMayDiscountsModal] = useState(false);
   const [mayDiscounts, setMayDiscounts] = useState([]);
   const [loadingMayDiscounts, setLoadingMayDiscounts] = useState(false);
+
+  // İyun ayında seçilmiş tarixi yoxla: həftəiçi (B.e-Cümə) && saat 11:00-17:00
+  const isIyunDiscount = (() => {
+    const d = new Date(selectedDate);
+    const month = d.getMonth(); // 5 = İyun
+    const dow = d.getDay();     // 0=Bazar, 1=B.e, ..., 5=Cümə, 6=Şənbə
+    const isWeekday = dow >= 1 && dow <= 5;
+    return month === 5 && isWeekday; // True olsa, 11:00-17:00 arası endirimlər göstərilir
+  })();
 
   // nermin1 multi-branch
   const [allBranches, setAllBranches] = useState([]);
@@ -822,7 +831,7 @@ export default function Cedvel() {
     }
   };
 
-  // ✅ YENİ - May Ayı Endirimləri Modalını aç
+  // ✅ İyun Ayı Endirimləri Modalını aç
   const fetchMayDiscounts = () => {
     setShowMayDiscountsModal(true);
   };
@@ -1439,14 +1448,14 @@ export default function Cedvel() {
           </>
         )}
 
-        {/* ✅ YENİ - May Ayı Endirimləri Düyməsi */}
+        {/* ✅ İyun Ayı Endirimləri Düyməsi */}
         <button
           onClick={fetchMayDiscounts}
           disabled={loadingMayDiscounts}
           style={{
             marginLeft: 'auto',
             padding: '8px 16px',
-            backgroundColor: '#10b981',
+            backgroundColor: isIyunDiscount ? '#10b981' : '#64748b',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
@@ -1458,11 +1467,11 @@ export default function Cedvel() {
             gap: '6px',
             opacity: loadingMayDiscounts ? 0.6 : 1
           }}
-          onMouseEnter={(e) => !loadingMayDiscounts && (e.currentTarget.style.backgroundColor = '#059669')}
-          onMouseLeave={(e) => !loadingMayDiscounts && (e.currentTarget.style.backgroundColor = '#10b981')}
+          onMouseEnter={(e) => !loadingMayDiscounts && (e.currentTarget.style.backgroundColor = isIyunDiscount ? '#059669' : '#475569')}
+          onMouseLeave={(e) => !loadingMayDiscounts && (e.currentTarget.style.backgroundColor = isIyunDiscount ? '#10b981' : '#64748b')}
         >
           <DollarSign size={16} />
-          {loadingMayDiscounts ? 'Yüklənir...' : 'May Ayı Endirimləri'}
+          {loadingMayDiscounts ? 'Yüklənir...' : 'İyun Endirimləri (15%)'}
         </button>
       </div>
 
@@ -2931,7 +2940,7 @@ export default function Cedvel() {
 
 
 
-      {/* ✅ YENİ - May Ayı Endirimli Qiymət Siyahısı Modal */}
+      {/* ✅ İyun Ayı Endirimli Qiymət Siyahısı Modal */}
       {showMayDiscountsModal && (
         <div
           onClick={() => setShowMayDiscountsModal(false)}
@@ -2962,7 +2971,7 @@ export default function Cedvel() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                🌸 May Ayı Endirimli Qiymət Siyahısı
+                ☀️ İyun Ayı Endirimli Qiymət Siyahısı
               </h2>
               <button
                 onClick={() => setShowMayDiscountsModal(false)}
@@ -2971,10 +2980,35 @@ export default function Cedvel() {
                 <X size={20} />
               </button>
             </div>
-            
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
-              May ayı ərzində bütün masaj xidmətlərinə <strong>10% endirim</strong> tətbiq olunur.
-            </p>
+
+            {/* Şərt izahatı */}
+            <div style={{
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              fontSize: '14px',
+              color: '#166534',
+              lineHeight: '1.6'
+            }}>
+              <strong>📅 İyun ayında</strong> həftəiçi günlər (Bazar ertəsi – Cümə) saat{' '}
+              <strong>11:00 – 17:00</strong> arasında bütün masaj xidmətlərinə{' '}
+              <strong style={{ color: '#059669', fontSize: '16px' }}>15% endirim</strong> tətbiq olunur.
+              {!isIyunDiscount && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px 12px',
+                  backgroundColor: '#fef9c3',
+                  border: '1px solid #fde68a',
+                  borderRadius: '6px',
+                  color: '#92400e',
+                  fontSize: '13px'
+                }}>
+                  ⚠️ Seçilmiş tarix həftəsonu olduğundan endirim tətbiq edilmir.
+                </div>
+              )}
+            </div>
 
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
@@ -2983,22 +3017,30 @@ export default function Cedvel() {
                     <th style={{ padding: '12px 15px', color: '#475569' }}>Masaj Növü</th>
                     <th style={{ padding: '12px 15px', color: '#475569' }}>Müddət</th>
                     <th style={{ padding: '12px 15px', color: '#475569' }}>Orijinal Qiymət</th>
-                    <th style={{ padding: '12px 15px', color: '#10b981' }}>May Endirimi (10%)</th>
+                    <th style={{ padding: '12px 15px', color: '#10b981' }}>İyun Endirimi (15%)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {massageTypes.map((type) => (
                     type.durations.map((dur, index) => {
-                      const discountAmount = (dur.price * 10) / 100;
+                      const discountAmount = (dur.price * 15) / 100;
                       const discountedPrice = Math.round(dur.price - discountAmount);
-                      
+
                       return (
-                        <tr key={`${type._id}-${dur.minutes}`} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        <tr
+                          key={`${type._id}-${dur.minutes}`}
+                          style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
                           <td style={{ padding: '12px 15px', fontWeight: '500' }}>{index === 0 ? type.name : ''}</td>
                           <td style={{ padding: '12px 15px' }}>{dur.minutes} dəqiqə</td>
                           <td style={{ padding: '12px 15px', textDecoration: 'line-through', color: '#94a3b8' }}>{dur.price} AZN</td>
                           <td style={{ padding: '12px 15px', fontWeight: '700', color: '#059669', fontSize: '16px' }}>
                             {discountedPrice} AZN
+                            <span style={{ fontSize: '11px', color: '#10b981', marginLeft: '6px', fontWeight: '500' }}>
+                              (-{discountAmount.toFixed(0)} AZN)
+                            </span>
                           </td>
                         </tr>
                       );
