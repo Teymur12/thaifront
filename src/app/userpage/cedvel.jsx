@@ -107,18 +107,18 @@ export default function Cedvel() {
   const [customerPackages, setCustomerPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
-  // ✅ İyun Ayı Endirimləri (Həftəiçi 11:00-17:00 arası 15%)
+  // ✅ İyun Ayı Endirimləri (Həftəiçi, saat 17:00-dan sonra 15%)
   const [showMayDiscountsModal, setShowMayDiscountsModal] = useState(false);
   const [mayDiscounts, setMayDiscounts] = useState([]);
   const [loadingMayDiscounts, setLoadingMayDiscounts] = useState(false);
 
-  // İyun ayında seçilmiş tarixi yoxla: həftəiçi (B.e-Cümə) && saat 11:00-17:00
+  // İyun ayında seçilmiş tarixi yoxla: həftəiçi (B.e-Cümə) - endirim 17:00-dan sonra
   const isIyunDiscount = (() => {
     const d = new Date(selectedDate);
     const month = d.getMonth(); // 5 = İyun
     const dow = d.getDay();     // 0=Bazar, 1=B.e, ..., 5=Cümə, 6=Şənbə
     const isWeekday = dow >= 1 && dow <= 5;
-    return month === 5 && isWeekday; // True olsa, 11:00-17:00 arası endirimlər göstərilir
+    return month === 5 && isWeekday; // İyun + həftəiçi gün — endirim 17:00-dan sonra tətbiq olunur
   })();
 
   // nermin1 multi-branch
@@ -2993,8 +2993,11 @@ export default function Cedvel() {
               lineHeight: '1.6'
             }}>
               <strong>📅 İyun ayında</strong> həftəiçi günlər (Bazar ertəsi – Cümə) saat{' '}
-              <strong>11:00 – 17:00</strong> arasında bütün masaj xidmətlərinə{' '}
+              <strong>17:00-dan sonra</strong> bütün masaj xidmətlərinə{' '}
               <strong style={{ color: '#059669', fontSize: '16px' }}>15% endirim</strong> tətbiq olunur.
+              <div style={{ marginTop: '6px', fontSize: '13px', color: '#166534', opacity: 0.8 }}>
+                (11:00 – 17:00 arası normal qiymətlər keçərlidir)
+              </div>
               {!isIyunDiscount && (
                 <div style={{
                   marginTop: '8px',
