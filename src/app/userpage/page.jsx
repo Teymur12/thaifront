@@ -22,6 +22,7 @@ import WeeklyBlockManager from './WeeklyBlockManager.jsx';
 import CompleteAppointment from './completePaymentModal.jsx';
 import CustomerHistory from './CustomerHistory.jsx';
 import PackageSale from './PackageSale.jsx';  // ✅ YENİ COMPONENT
+import HesabatModal from './HesabatModal.jsx';
 import Cookies from 'js-cookie';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://thaiback.onrender.com/api';
@@ -31,6 +32,37 @@ export default function Sidebar() {
   const [activeItem, setActiveItem] = useState('hesabat');
   const [masseurs, setMasseurs] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Nermin üçün hesabat modal
+  const [showHesabatModal, setShowHesabatModal] = useState(false);
+  const [hesabatUnlocked, setHesabatUnlocked] = useState(false);
+
+  const isNermin = () => {
+    try {
+      const userData = localStorage.getItem('userData');
+      if (!userData) return false;
+      const parsed = JSON.parse(userData);
+      const name = (parsed.username || parsed.name || '').toLowerCase().trim();
+      return name === 'nermin';
+    } catch {
+      return false;
+    }
+  };
+
+  // Hesabata keçid - Nermin isə modal aç
+  const handleHesabatAccess = () => {
+    if (isNermin() && !hesabatUnlocked) {
+      setShowHesabatModal(true);
+    } else {
+      setActiveItem('hesabat');
+    }
+  };
+
+  const handleModalComplete = () => {
+    setShowHesabatModal(false);
+    setHesabatUnlocked(true);
+    setActiveItem('hesabat');
+  };
 
   const menuItems = [
     {
@@ -112,9 +144,13 @@ export default function Sidebar() {
     }
   };
 
-  // Component yüklənəndə masajistləri çək
+  // Component yüklənəndə masajistləri çək + Nermin yoxlaması
   useEffect(() => {
     fetchMasseurs();
+    // Nermin daxil olubsa və default tab hesabatdırsa → modal aç
+    if (isNermin() && activeItem === 'hesabat') {
+      setShowHesabatModal(true);
+    }
   }, []);
 
   const handleLogout = () => {
@@ -132,7 +168,11 @@ export default function Sidebar() {
   };
 
   const handleItemClick = (item) => {
-    setActiveItem(item.id);
+    if (item.id === 'hesabat') {
+      handleHesabatAccess();
+    } else {
+      setActiveItem(item.id);
+    }
   };
 
   const toggleSidebar = () => {
@@ -196,6 +236,13 @@ export default function Sidebar() {
 
   return (
     <div style={styles.layout}>
+      {/* Nermin üçün Hesabat Açılış Modalı */}
+      {showHesabatModal && (
+        <HesabatModal
+          onComplete={handleModalComplete}
+          onClose={() => setShowHesabatModal(false)}
+        />
+      )}
       {/* Sol Sidebar */}
       <div style={{
         ...styles.sidebar,
