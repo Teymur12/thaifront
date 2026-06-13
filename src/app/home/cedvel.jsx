@@ -359,9 +359,9 @@ export default function AdminCedvel() {
     });
   };
 
-  const isAppointmentStart = (masseurId, time) => {
+  const getAppointmentsStartingInSlot = (masseurId, time) => {
     const masseurAppointments = getMasseurAppointments(masseurId);
-    return masseurAppointments.find(appointment => {
+    return masseurAppointments.filter(appointment => {
       const appointmentStart = new Date(appointment.startTime);
       const [slotHour] = time.split(':').map(Number);
       const startHour = appointmentStart.getHours();
@@ -703,7 +703,7 @@ export default function AdminCedvel() {
               {branchMasseurs.map((masseur) => {
                 const isBlocked = isMasseurBlocked(masseur._id);
                 const occupiedAppointment = isTimeSlotOccupied(masseur._id, timeSlot);
-                const startAppointment = isAppointmentStart(masseur._id, timeSlot);
+                const startAppointments = getAppointmentsStartingInSlot(masseur._id, timeSlot);
                 
                 if (isBlocked) {
                   return (
@@ -716,9 +716,7 @@ export default function AdminCedvel() {
                   );
                 }
                 
-                if (startAppointment) {
-                  const hasReceipt = startAppointment.advancePayment?.receiptImage?.url;
-                  
+                if (startAppointments.length > 0) {
                   return (
                     <div 
                       key={`${masseur._id}-${timeSlot}`}
@@ -726,95 +724,106 @@ export default function AdminCedvel() {
                         ...styles.timeSlot,
                         backgroundColor: 'transparent',
                         borderColor: '#e5e7eb',
-                        cursor: 'pointer',
                         ...(isToday() && isCurrentTimeSlot(timeSlot) ? styles.currentTimeSlot : {}),
                         position: 'relative'
                       }}
-                      onClick={() => openAppointmentDetails(startAppointment)}
                     >
-                      <div 
-                        style={{
-                          ...styles.appointmentCard,
-                          position: 'absolute',
-                          top: `${getAppointmentTopOffset(startAppointment, timeSlot)}px`,
-                          height: `${getAppointmentHeight(startAppointment)}px`,
-                          left: '2px',
-                          right: '2px',
-                          minHeight: '55px'
-                        }}
-                      >
-                        <div style={styles.appointmentContent}>
-                          <div style={styles.appointmentTopRow}>
-                            <span 
-                              style={{
-                                ...styles.statusBadge,
-                                backgroundColor: getStatusColor(startAppointment.status)
-                              }}
-                            >
-                              {getStatusName(startAppointment.status)}
-                            </span>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              {hasReceipt && (
-                                <button 
-                                  style={styles.receiptBtn}onClick={(e) => {
-                                    e.stopPropagation();
-                                    viewReceipt(startAppointment._id);
+                      {startAppointments.map(appointment => {
+                        const hasReceipt = appointment.advancePayment?.receiptImage?.url;
+                        return (
+                          <div 
+                            key={appointment._id}
+                            style={{
+                              ...styles.appointmentCard,
+                              position: 'absolute',
+                              top: `${getAppointmentTopOffset(appointment, timeSlot)}px`,
+                              height: `${getAppointmentHeight(appointment)}px`,
+                              left: '2px',
+                              right: '2px',
+                              minHeight: '55px',
+                              cursor: 'pointer',
+                              zIndex: 10
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAppointmentDetails(appointment);
+                            }}
+                          >
+                            <div style={styles.appointmentContent}>
+                              <div style={styles.appointmentTopRow}>
+                                <span 
+                                  style={{
+                                    ...styles.statusBadge,
+                                    backgroundColor: getStatusColor(appointment.status)
                                   }}
-                                  title="Qəbzə bax"
                                 >
-                                  <Receipt size={12} />
-                                </button>
+                                  {getStatusName(appointment.status)}
+                                </span>
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  {hasReceipt && (
+                                    <button 
+                                      style={styles.receiptBtn}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        viewReceipt(appointment._id);
+                                      }}
+                                      title="Qəbzə bax"
+                                    >
+                                      <Receipt size={12} />
+                                    </button>
+                                  )}
+                                  <button 
+                                    style={styles.deleteBtn} 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteAppointment(appointment._id);
+                                    }}
+                                    title="Sil"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              <div style={styles.customerName}>
+                                {appointment.customer?.name || appointment.customer || 'Ad yoxdur'}
+                              </div>
+                              
+                              {appointment.massageType && (
+                                <div style={styles.massageType}>
+                                  {appointment.massageType?.name || appointment.massageType}
+                                </div>
                               )}
-                              <button 
-                                style={styles.deleteBtn} 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteAppointment(startAppointment._id);
-                                }}
-                                title="Sil"
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                              
+                              <div style={styles.appointmentTime}>
+                                {new Date(appointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
+                                {new Date(appointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                                <span style={styles.durationBadge}>({appointment.duration}dəq)</span>
+                              </div>
+                              
+                              <div style={styles.pricePaymentRow}>
+                                <span style={styles.appointmentPrice}>
+                                  {appointment.price || 0} ₼
+                                </span>
+                                {appointment.paymentMethod && (
+                                  <span 
+                                    style={{
+                                      ...styles.paymentMethod,
+                                      color: getPaymentMethodColor(appointment.paymentMethod)
+                                    }}
+                                  >
+                                    {getPaymentMethodName(appointment.paymentMethod)}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div style={styles.receptionistInfo}>
+                                {getReceptionistName(appointment.createdBy)}
+                              </div>
                             </div>
                           </div>
-                          
-                          <div style={styles.customerName}>
-                            {startAppointment.customer?.name || startAppointment.customer || 'Ad yoxdur'}
-                          </div>
-                          
-                          {startAppointment.massageType && (
-                            <div style={styles.massageType}>
-                              {startAppointment.massageType?.name || startAppointment.massageType}
-                            </div>
-                          )}
-                          
-                          <div style={styles.appointmentTime}>
-                            {new Date(startAppointment.startTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} - 
-                            {new Date(startAppointment.endTime).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                            <span style={styles.durationBadge}>({startAppointment.duration}dəq)</span>
-                          </div>
-                          
-                          <div style={styles.pricePaymentRow}>
-                            <span style={styles.appointmentPrice}>
-                              {startAppointment.price || 0} ₼
-                            </span>
-                            {startAppointment.paymentMethod && (
-                              <span 
-                                style={{
-                                  ...styles.paymentMethod,
-                                  color: getPaymentMethodColor(startAppointment.paymentMethod)
-                                }}
-                              >
-                                {getPaymentMethodName(startAppointment.paymentMethod)}
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div style={styles.receptionistInfo}>
-                            {getReceptionistName(startAppointment.createdBy)}
-                          </div>
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
                   );
                 }
