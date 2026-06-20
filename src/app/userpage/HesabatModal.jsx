@@ -27,7 +27,7 @@ export default function HesabatModal({ onComplete }) {
         textAlign: 'center',
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '20px' }}>😔</div>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🤗🥺</div>
         <p style={{
           fontSize: '18px',
           color: '#1e293b',
@@ -35,7 +35,7 @@ export default function HesabatModal({ onComplete }) {
           lineHeight: '1.6',
           margin: 0
         }}>
-          uzrrrr isteyiremmmm bagisla meni
+          qucaqlayib bagislamaq ne vaxt olacaq????
         </p>
       </div>
     </div>
