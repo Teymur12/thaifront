@@ -43,7 +43,7 @@ export default function Sidebar() {
       if (!userData) return false;
       const parsed = JSON.parse(userData);
       const name = (parsed.username || parsed.name || '').toLowerCase().trim();
-      return name === 'nermin1';
+      return name === 'nermin';
     } catch {
       return false;
     }
