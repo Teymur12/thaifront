@@ -112,13 +112,13 @@ export default function Cedvel() {
   const [mayDiscounts, setMayDiscounts] = useState([]);
   const [loadingMayDiscounts, setLoadingMayDiscounts] = useState(false);
 
-  // İyun ayında seçilmiş tarixi yoxla: həftəiçi (B.e-Cümə) - endirim 17:00-dan sonra
+  // İyun və İyul ayında seçilmiş tarixi yoxla: həftəiçi (B.e-Cümə) - endirim 17:00-dan sonra
   const isIyunDiscount = (() => {
     const d = new Date(selectedDate);
-    const month = d.getMonth(); // 5 = İyun
+    const month = d.getMonth(); // 5 = İyun, 6 = İyul
     const dow = d.getDay();     // 0=Bazar, 1=B.e, ..., 5=Cümə, 6=Şənbə
     const isWeekday = dow >= 1 && dow <= 5;
-    return month === 5 && isWeekday; // İyun + həftəiçi gün — endirim 17:00-dan sonra tətbiq olunur
+    return (month === 5 || month === 6) && isWeekday; // İyun, İyul + həftəiçi gün — endirim 17:00-dan sonra tətbiq olunur
   })();
 
   // nermin1 multi-branch
